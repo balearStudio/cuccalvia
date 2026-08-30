@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>CUC Calvià en 3D</title>
+    <meta
+      name="description"
+      content="Recorrido interactivo en 3D por el Centro Universitario de Calvià: el edificio, la biblioteca y las salas de estudio."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap"
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f4c63'/%3E%3Ctext x='16' y='22' font-family='Helvetica,Arial' font-size='15' font-weight='700' fill='%23fff' text-anchor='middle'%3EC%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <!-- Pantalla de carga -->
+    <div class="loader" id="loader">
+      <div class="loader__inner">
+        <div class="loader__logo">CUC</div>
+        <div class="loader__title">Centre Universitari de Calvià</div>
+        <div class="loader__bar"><span id="loaderBar"></span></div>
+        <div class="loader__hint" id="loaderHint">Construyendo el edificio…</div>
+      </div>
+    </div>
+
+    <!-- Menú lateral superpuesto -->
+    <header class="brand">
+      <span class="brand__mark">CUC</span>
+      <span class="brand__text">Centre Universitari<br />de Calvià</span>
+    </header>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="sidenav" id="sidenav" aria-label="Secciones">
+      <ol class="sidenav__list" id="navList"></ol>
+      <div class="sidenav__foot">
+        <a href="mailto:cuc@calvia.com">cuc@calvia.com</a>
+        <a href="tel:+34971402068">971 40 20 68</a>
+      </div>
+    </nav>
+
+    <!-- Contenido de cada sección -->
+    <main class="stage" id="stage"></main>
+
+    <!-- Indicador de progreso / puntos -->
+    <aside class="dots" id="dots" aria-hidden="true"></aside>
+
+    <div class="scroll-hint" id="scrollHint">
+      <span>Desplázate para entrar</span>
+      <i></i>
+    </div>
+
+    <div class="hud">
+      <button class="hud__btn" id="photoBtn" title="Ver foto real">Foto real</button>
+      <button class="hud__btn" id="autoBtn" title="Vista orbital automática">Órbita</button>
+    </div>
+
+    <figure class="photo" id="photo" hidden>
+      <img id="photoImg" src="" alt="Fotografía del CUC Calvià" />
+      <figcaption id="photoCap"></figcaption>
+    </figure>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
