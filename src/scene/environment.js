@@ -101,6 +101,43 @@ function shrubGeometry(rand, x, z, r) {
   return g;
 }
 
+/**
+ * Coche de baja poligonización. Devuelve geometrías separadas por material
+ * para poder fusionarlas después en pocas mallas.
+ */
+function carGeometries(rand, x, z, rot) {
+  const body = [];
+  const glass = [];
+  const tyre = [];
+  const L = 4.1 + rand() * 0.7;
+  const W = 1.75 + rand() * 0.15;
+
+  const chassis = new THREE.BoxGeometry(W, 0.62, L);
+  chassis.translate(0, 0.72, 0);
+  body.push(chassis);
+
+  const cabin = new THREE.BoxGeometry(W * 0.92, 0.56, L * 0.46);
+  cabin.translate(0, 1.3, -L * 0.05);
+  glass.push(cabin);
+
+  const roof = new THREE.BoxGeometry(W * 0.8, 0.1, L * 0.4);
+  roof.translate(0, 1.58, -L * 0.05);
+  body.push(roof);
+
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const w = new THREE.CylinderGeometry(0.33, 0.33, 0.2, 10);
+      w.rotateZ(Math.PI / 2);
+      w.translate(sx * (W / 2 - 0.04), 0.33, sz * (L * 0.32));
+      tyre.push(w);
+    }
+  }
+
+  const m = new THREE.Matrix4().makeRotationY(rot).setPosition(x, GROUND_Y, z);
+  [...body, ...glass, ...tyre].forEach((g) => g.applyMatrix4(m));
+  return { body, glass, tyre };
+}
+
 export function createEnvironment(env) {
   const t = buildTextures();
   const group = new THREE.Group();
@@ -116,6 +153,11 @@ export function createEnvironment(env) {
     envMap: env,
     envMapIntensity: 0.3
   });
+  // El plano del suelo tiene UV 0..1, así que la repetición se calcula aparte
+  grassMat.map = t.grass.clone();
+  grassMat.map.wrapS = grassMat.map.wrapT = THREE.RepeatWrapping;
+  grassMat.map.repeat.set(70, 70); // una baldosa cada 6 m
+  grassMat.map.needsUpdate = true;
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(420, 420, 1, 1), grassMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = GROUND_Y;
@@ -132,15 +174,10 @@ export function createEnvironment(env) {
   });
   const paths = [];
   // Acceso frontal
-  const main = new THREE.PlaneGeometry(11, 34);
+  const main = new THREE.PlaneGeometry(11, 22);
   main.rotateX(-Math.PI / 2);
-  main.translate(4, GROUND_Y + 0.02, 24);
+  main.translate(4, GROUND_Y + 0.02, 19);
   paths.push(main);
-  // Vial lateral
-  const side = new THREE.PlaneGeometry(46, 7.5);
-  side.rotateX(-Math.PI / 2);
-  side.translate(6, GROUND_Y + 0.015, 40);
-  paths.push(side);
   // Sendero a la rampa
   const ramp = new THREE.PlaneGeometry(5, 18);
   ramp.rotateX(-Math.PI / 2);
@@ -168,14 +205,164 @@ export function createEnvironment(env) {
     cap.translate(x, GROUND_Y + h + 0.06, z);
     walls.push(cap);
   };
-  addWall(15, 0.75, 0.5, -13, 16.5);
-  addWall(0.5, 0.75, 12, -20.3, 10.8);
-  addWall(12, 0.9, 0.5, 21, 12);
-  addWall(0.5, 0.9, 10, 26.8, 7.4);
+  addWall(13, 0.75, 0.5, -13, 16.5);
+  addWall(0.5, 0.75, 12, -19.3, 10.8);
+  addWall(10, 0.9, 0.5, 22, 14);
+  addWall(0.5, 0.9, 10, 26.8, 9.4);
   const wallMesh = new THREE.Mesh(mergeGeometries(walls), stoneMat);
   wallMesh.castShadow = true;
   wallMesh.receiveShadow = true;
   group.add(wallMesh);
+
+  /* ---------------- Aparcamiento y pasarela de acceso ---------------- */
+  // En la vista aérea el aparcamiento queda al norte, sobre el edificio, y de él
+  // baja una pasarela hasta la entrada; la pista de tenis está al este.
+  const PARK_Y = GROUND_Y + 2.2;
+  const asphaltMat = new THREE.MeshStandardMaterial({
+    map: t.asphalt,
+    color: 0xb9b6ae,
+    roughness: 0.96,
+    envMap: env,
+    envMapIntensity: 0.2
+  });
+
+  const lot = new THREE.Mesh(new THREE.BoxGeometry(42, 0.3, 19), asphaltMat);
+  lot.position.set(5, PARK_Y - 0.15, 46);
+  lot.receiveShadow = true;
+  group.add(lot);
+
+  // Talud y muro de contención hacia el edificio
+  const retaining = [];
+  retaining.push((() => {
+    const g = new THREE.BoxGeometry(42, 2.2, 0.6);
+    g.translate(5, GROUND_Y + 1.1, 36.5);
+    return g;
+  })());
+  for (const sx of [-1, 1]) {
+    const g = new THREE.BoxGeometry(0.6, 2.2, 19);
+    g.translate(5 + sx * 21, GROUND_Y + 1.1, 46);
+    retaining.push(g);
+  }
+  const retainingMesh = new THREE.Mesh(mergeGeometries(retaining), stoneMat);
+  retainingMesh.castShadow = true;
+  retainingMesh.receiveShadow = true;
+  group.add(retainingMesh);
+
+  // Marcas de las plazas
+  const marks = [];
+  for (let i = 0; i < 12; i++) {
+    const g = new THREE.BoxGeometry(0.12, 0.02, 4.6);
+    g.translate(-13 + i * 2.5, PARK_Y + 0.01, 43.5);
+    marks.push(g);
+  }
+  group.add(
+    new THREE.Mesh(mergeGeometries(marks), new THREE.MeshStandardMaterial({ color: 0xe4d98a, roughness: 0.9 }))
+  );
+
+  // Coches aparcados
+  const carBody = [];
+  const carGlass = [];
+  const carTyre = [];
+  const bodyColors = [0x2b3138, 0xb8bcc0, 0x8d99a6, 0x6b2f2f, 0x2f4a6b, 0xd8d5cc];
+  const bodyBuckets = bodyColors.map(() => []);
+  for (let i = 0; i < 7; i++) {
+    const x = -11.8 + i * 2.5 + rand() * 0.3;
+    const c = carGeometries(rand, x, 43.4 + rand() * 0.4, Math.PI * (rand() > 0.5 ? 1 : 0));
+    c.body.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
+    c.glass.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
+    c.tyre.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
+    bodyBuckets[Math.floor(rand() * bodyColors.length)].push(...c.body);
+    carGlass.push(...c.glass);
+    carTyre.push(...c.tyre);
+  }
+  bodyBuckets.forEach((geos, i) => {
+    if (!geos.length) return;
+    const mesh = new THREE.Mesh(
+      mergeGeometries(geos),
+      new THREE.MeshStandardMaterial({ color: bodyColors[i], roughness: 0.35, metalness: 0.55, envMap: env, envMapIntensity: 0.9 })
+    );
+    mesh.castShadow = true;
+    group.add(mesh);
+  });
+  const carGlassMesh = new THREE.Mesh(
+    mergeGeometries(carGlass),
+    new THREE.MeshStandardMaterial({ color: 0x2a3438, roughness: 0.12, metalness: 0.3, envMap: env, envMapIntensity: 1.1 })
+  );
+  const carTyreMesh = new THREE.Mesh(mergeGeometries(carTyre), new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 0.95 }));
+  carGlassMesh.castShadow = true;
+  group.add(carGlassMesh, carTyreMesh);
+  void carBody;
+
+  // Pasarela desde el aparcamiento hasta la plaza de acceso
+  const walkway = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.25, 8.6), pathMat);
+  walkway.position.set(4, GROUND_Y + 1.1, 32.4);
+  walkway.rotation.x = -Math.atan(2.2 / 8.6);
+  walkway.castShadow = true;
+  walkway.receiveShadow = true;
+  group.add(walkway);
+
+  const parapets = [];
+  for (const sx of [-1, 1]) {
+    const g = new THREE.BoxGeometry(0.3, 1.0, 9.2);
+    g.translate(4 + sx * 2.45, GROUND_Y + 1.65, 32.4);
+    g.rotateX(0);
+    parapets.push(g);
+  }
+  const parapetMesh = new THREE.Mesh(mergeGeometries(parapets), stoneMat);
+  parapetMesh.castShadow = true;
+  group.add(parapetMesh);
+
+  /* ---------------- Pista de tenis (al este) ---------------- */
+  const court = new THREE.Group();
+  const courtBase = new THREE.Mesh(
+    new THREE.BoxGeometry(19, 0.3, 34),
+    new THREE.MeshStandardMaterial({ color: 0x2f6b52, roughness: 0.95 })
+  );
+  courtBase.position.set(44, GROUND_Y + 0.15, -4);
+  courtBase.receiveShadow = true;
+  court.add(courtBase);
+
+  const play = new THREE.Mesh(
+    new THREE.PlaneGeometry(11, 24),
+    new THREE.MeshStandardMaterial({ color: 0x3f8f68, roughness: 0.95 })
+  );
+  play.rotation.x = -Math.PI / 2;
+  play.position.set(44, GROUND_Y + 0.31, -4);
+  court.add(play);
+
+  const courtLines = [];
+  for (const [w, d, dx, dz] of [
+    [11, 0.1, 0, 12], [11, 0.1, 0, -12], [0.1, 24, 5.5, 0], [0.1, 24, -5.5, 0],
+    [8.2, 0.1, 0, 6.4], [8.2, 0.1, 0, -6.4], [0.1, 12.8, 0, 0]
+  ]) {
+    const g = new THREE.BoxGeometry(w, 0.02, d);
+    g.translate(44 + dx, GROUND_Y + 0.32, -4 + dz);
+    courtLines.push(g);
+  }
+  court.add(new THREE.Mesh(mergeGeometries(courtLines), new THREE.MeshStandardMaterial({ color: 0xf2f2ec, roughness: 0.9 })));
+
+  // Valla perimetral
+  const fencePosts = [];
+  for (let i = 0; i <= 10; i++) {
+    const g = new THREE.CylinderGeometry(0.06, 0.06, 3.2, 6);
+    g.translate(44 - 9.5, GROUND_Y + 1.9, -4 - 17 + i * 3.4);
+    fencePosts.push(g.clone());
+    const g2 = g.clone();
+    g2.translate(19, 0, 0);
+    fencePosts.push(g2);
+  }
+  court.add(new THREE.Mesh(mergeGeometries(fencePosts), new THREE.MeshStandardMaterial({ color: 0x5c6468, metalness: 0.6, roughness: 0.5 })));
+  const mesh1 = new THREE.Mesh(
+    new THREE.PlaneGeometry(34, 3.2),
+    new THREE.MeshStandardMaterial({ color: 0x3c4448, transparent: true, opacity: 0.22, side: THREE.DoubleSide, roughness: 0.6 })
+  );
+  mesh1.rotation.y = Math.PI / 2;
+  mesh1.position.set(34.5, GROUND_Y + 1.9, -4);
+  court.add(mesh1);
+  court.traverse((o) => {
+    if (o.isMesh) o.receiveShadow = true;
+  });
+  group.add(court);
 
   /* ---------------- Vegetación ---------------- */
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6d5137, roughness: 0.95 });
@@ -207,12 +394,16 @@ export function createEnvironment(env) {
     const px = ax + dx * t, pz = az + dz * t;
     return Math.hypot(x - px, z - pz) < 13;
   };
-  for (let i = 0; i < 260 && spots.length < 44; i++) {
+  const busy = (x, z) =>
+    (z > 2 && x > -26 && x < 30) || // frente del edificio y acceso
+    (z > 30 && x > -20 && x < 30) || // aparcamiento y pasarela
+    (x > 31 && x < 57 && z > -24 && z < 16); // pista de tenis
+  for (let i = 0; i < 700 && spots.length < 96; i++) {
     const a = rand() * Math.PI * 2;
-    const r = 30 + rand() * 48;
+    const r = 26 + rand() * 56;
     const x = Math.cos(a) * r + 2;
     const z = Math.sin(a) * r - 4;
-    if (z > 2 && x > -26 && x < 30) continue; // despeja el frente y el acceso
+    if (busy(x, z)) continue;
     if (blocksHero(x, z)) continue;
     spots.push([x, z]);
   }

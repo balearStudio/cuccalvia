@@ -19,7 +19,8 @@ const fragment = process.argv.includes('--fragment');
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 
 const mime = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
-const images = readdirSync(join(dist, 'images'));
+// Carpetas de recursos que el bundle referencia por ruta (no las inlinea Vite)
+const assetDirs = ['images', 'textures'];
 
 const assetsDir = join(dist, 'assets');
 const files = readdirSync(assetsDir);
@@ -29,14 +30,16 @@ const jsFile = files.find((f) => f.endsWith('.js'));
 let css = readFileSync(join(assetsDir, cssFile), 'utf8');
 let js = readFileSync(join(assetsDir, jsFile), 'utf8');
 
-// Fotografías → data URI (el bundle las referencia como "images/archivo.jpg")
-for (const name of images) {
-  const type = mime[extname(name).toLowerCase()];
-  if (!type) continue;
-  const data = readFileSync(join(dist, 'images', name)).toString('base64');
-  const uri = `data:${type};base64,${data}`;
-  for (const ref of [`images/${name}`, `./images/${name}`, `/images/${name}`]) {
-    js = js.split(ref).join(uri);
+// Fotografías y texturas → data URI (el bundle las referencia por ruta)
+for (const dir of assetDirs) {
+  for (const name of readdirSync(join(dist, dir))) {
+    const type = mime[extname(name).toLowerCase()];
+    if (!type) continue;
+    const data = readFileSync(join(dist, dir, name)).toString('base64');
+    const uri = `data:${type};base64,${data}`;
+    for (const ref of [`${dir}/${name}`, `./${dir}/${name}`, `/${dir}/${name}`]) {
+      js = js.split(ref).join(uri);
+    }
   }
 }
 

@@ -3,6 +3,7 @@ import './styles/main.css';
 
 import { SECTIONS, CHARACTER } from './config/site.js';
 import { createSky, skyEnvironment } from './scene/sky.js';
+import { initTextures } from './scene/textures.js';
 import { createBuilding } from './scene/building.js';
 import { createEnvironment } from './scene/environment.js';
 import { createInterior } from './scene/interior.js';
@@ -25,7 +26,7 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.6 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -83,7 +84,10 @@ const scroll = new ScrollController({
 const next = (fn) => new Promise((resolve) => requestAnimationFrame(() => resolve(fn())));
 
 async function boot() {
-  ui.progress(0.08, 'Preparando el cielo…');
+  ui.progress(0.06, 'Recortando las texturas de las fotos…');
+  await initTextures(import.meta.env.BASE_URL ?? '');
+
+  ui.progress(0.18, 'Preparando el cielo…');
   const env = await next(() => skyEnvironment(renderer, sunDir));
   scene.environment = env;
   scene.add(createSky(sunDir));
@@ -115,12 +119,17 @@ async function boot() {
 /* ------------------------------------------------------------------ */
 /* Bucle                                                               */
 /* ------------------------------------------------------------------ */
-const clock = new THREE.Clock();
+let last = performance.now();
+let elapsed = 0;
 
 function animate() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const now = performance.now();
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  elapsed += dt;
+
   rig.update(dt);
-  daniel?.update(clock.elapsedTime);
+  daniel?.update(elapsed);
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }

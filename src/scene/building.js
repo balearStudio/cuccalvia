@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildTextures } from './textures.js';
+import { buildTextures, PHOTO } from './textures.js';
 
 /**
  * Edificio del CUC Calvià (exterior).
@@ -32,48 +32,46 @@ const wallTop = (x, z) => roofSoffitY(x, z) - PLAN.gap;
 function makeMaterials(env) {
   const t = buildTextures();
 
+  // El mapa ya lleva el color medido en la foto, así que el material no lo tiñe
   const stucco = new THREE.MeshStandardMaterial({
     map: t.stucco,
     bumpMap: t.stuccoBump,
-    bumpScale: 0.035,
-    color: 0xf0e8d6,
+    bumpScale: 0.04,
+    color: 0xffffff,
     roughness: 0.94,
-    metalness: 0,
-    envMap: env,
-    envMapIntensity: 0.35
-  });
-  t.stucco.repeat.set(0.22, 0.22);
-  t.stuccoBump.repeat.set(0.22, 0.22);
-
-  const concrete = new THREE.MeshStandardMaterial({
-    map: t.concrete,
-    color: 0xe4ded2,
-    roughness: 0.9,
     metalness: 0,
     envMap: env,
     envMapIntensity: 0.3
   });
-  t.concrete.repeat.set(0.25, 0.25);
+
+  const concrete = new THREE.MeshStandardMaterial({
+    map: t.concrete,
+    color: 0xffffff,
+    roughness: 0.9,
+    metalness: 0,
+    envMap: env,
+    envMapIntensity: 0.28
+  });
 
   const stone = new THREE.MeshStandardMaterial({
     map: t.stone,
-    color: 0xdad2c0,
+    color: 0xffffff,
     roughness: 0.95,
     envMap: env,
     envMapIntensity: 0.25
   });
-  t.stone.repeat.set(0.3, 0.3);
 
   const column = new THREE.MeshStandardMaterial({
-    color: 0xf4f2ec,
+    color: 0xeeece4,
     roughness: 0.52,
     metalness: 0.02,
     envMap: env,
     envMapIntensity: 0.5
   });
 
+  // Tono tomado del muro cortina en la fotografía
   const glass = new THREE.MeshPhysicalMaterial({
-    color: 0x14313c,
+    color: new THREE.Color(PHOTO.glass).multiplyScalar(0.32),
     metalness: 0.0,
     roughness: 0.045,
     transparent: true,
@@ -106,29 +104,38 @@ function makeMaterials(env) {
     envMapIntensity: 1.0
   });
 
+  // Desde la vista aérea la cubierta es de grava clara, entre arena y tostado
   const roofTop = new THREE.MeshStandardMaterial({
-    color: 0x9b978c,
-    roughness: 0.82,
+    map: t.concrete,
+    color: 0xc3b795,
+    roughness: 0.95,
     metalness: 0.05,
     envMap: env,
     envMapIntensity: 0.4
   });
 
   const soffit = new THREE.MeshStandardMaterial({
-    color: 0xefe9dc,
+    color: 0xdcd6c6,
     roughness: 0.88,
     envMap: env,
     envMapIntensity: 0.3
   });
 
   const edge = new THREE.MeshStandardMaterial({
-    color: 0xd9d3c6,
+    color: 0xcfc9ba,
     roughness: 0.7,
     envMap: env,
     envMapIntensity: 0.4
   });
 
-  return { stucco, concrete, stone, column, glass, darkGlass, mullion, steel, roofTop, soffit, edge };
+  // Cara interior de los muros: enfoscado pintado, no el revoco de fuera
+  const plaster = new THREE.MeshStandardMaterial({
+    color: 0xf4f2ec,
+    roughness: 0.96,
+    metalness: 0
+  });
+
+  return { stucco, concrete, stone, column, glass, darkGlass, mullion, steel, roofTop, soffit, edge, plaster };
 }
 
 /* ------------------------------------------------------------------ */
@@ -227,6 +234,10 @@ function shell(m) {
   frontWall.position.z = -T;
   g.add(frontWall);
 
+  const frontLining = wall(frontOutline, holes, 0.03, m.plaster);
+  frontLining.position.z = -T - 0.03;
+  g.add(frontLining);
+
   // Vidrios de esos huecos
   for (const h of holes) {
     const x0 = h[0][0];
@@ -253,6 +264,11 @@ function shell(m) {
   leftWall.rotation.y = Math.PI / 2;
   leftWall.position.set(PLAN.left, 0, 0);
   g.add(leftWall);
+
+  const leftLining = wall(leftOutline, leftHoles, 0.03, m.plaster);
+  leftLining.rotation.y = Math.PI / 2;
+  leftLining.position.set(PLAN.left + T, 0, 0);
+  g.add(leftLining);
   for (const h of leftHoles) {
     const z0 = -h[0][0];
     const y0 = h[0][1];
@@ -278,6 +294,11 @@ function shell(m) {
   rightWall.rotation.y = -Math.PI / 2;
   rightWall.position.set(PLAN.right, 0, PLAN.back);
   g.add(rightWall);
+
+  const rightLining = wall(rightOutline, rightHoles, 0.03, m.plaster);
+  rightLining.rotation.y = -Math.PI / 2;
+  rightLining.position.set(PLAN.right - T, 0, PLAN.back);
+  g.add(rightLining);
   for (const h of rightHoles) {
     const z0 = PLAN.back + h[0][0];
     const y0 = h[0][1];
@@ -302,6 +323,10 @@ function shell(m) {
   const backWall = wall(backOutline, backHoles, T, m.stucco);
   backWall.position.set(0, 0, PLAN.back);
   g.add(backWall);
+
+  const backLining = wall(backOutline, backHoles, 0.03, m.plaster);
+  backLining.position.set(0, 0, PLAN.back + T);
+  g.add(backLining);
 
   return g;
 }
