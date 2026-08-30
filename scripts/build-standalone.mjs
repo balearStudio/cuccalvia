@@ -48,7 +48,12 @@ const body = (html.match(/<body[^>]*>([\s\S]*)<\/body>/) || [, ''])[1]
   .replace(/<script[\s\S]*?<\/script>/g, '')
   .trim();
 
-const head = `<title>${title}</title>\n<style>\n${css}\n</style>`;
+// Hojas de estilo externas del <head> original (tipografías de Google)
+const headLinks = (html.match(/<link\b[^>]*rel="(?:stylesheet|preconnect)"[^>]*>/g) || [])
+  .filter((tag) => !/href="\.?\/?assets\//.test(tag)) // el CSS del bundle ya va en línea
+  .join('\n');
+
+const head = `<title>${title}</title>\n${headLinks}\n<style>\n${css}\n</style>`;
 const tail = `<script type="module">\n${safeJs}\n</script>`;
 
 const output = fragment

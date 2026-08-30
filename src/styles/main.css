@@ -10,6 +10,8 @@
   --paper: #f7f4ee;
   --accent: #e8a33d;
   --ui: clamp(13px, 0.95vw, 15px);
+  --font-display: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-text: "Barlow", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
   --pad: clamp(18px, 3vw, 44px);
   --nav-w: 232px;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -23,7 +25,7 @@ html, body {
   overflow: hidden;
   background: #0b1a22;
   color: var(--paper);
-  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  font-family: var(--font-text);
   font-size: var(--ui);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
@@ -53,6 +55,7 @@ body { touch-action: none; }
 .loader.is-done { opacity: 0; visibility: hidden; }
 .loader__inner { text-align: center; padding: 0 24px; }
 .loader__logo {
+  font-family: var(--font-display);
   font-size: clamp(46px, 9vw, 84px);
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -94,6 +97,7 @@ body { touch-action: none; }
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
 }
 .brand__mark {
+  font-family: var(--font-display);
   font-size: 26px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -147,6 +151,7 @@ body { touch-action: none; }
 }
 .sidenav__btn::before {
   content: counter(nav, decimal-leading-zero);
+  font-variant-numeric: tabular-nums;
   font-size: 10px;
   letter-spacing: 0.1em;
   opacity: 0.55;
@@ -242,10 +247,12 @@ body { touch-action: none; }
 }
 .panel__title {
   margin: 0 0 12px;
+  font-family: var(--font-display);
   font-size: clamp(30px, 4.4vw, 54px);
   line-height: 1.02;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
   text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 }
 .panel__text {
@@ -274,6 +281,9 @@ body { touch-action: none; }
 }
 .panel__facts b {
   display: block;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   font-size: 17px;
   letter-spacing: 0;
   text-transform: none;
@@ -421,4 +431,23 @@ body { touch-action: none; }
 
 @media (max-height: 560px) {
   .panel__facts { display: none; }
+}
+
+/* ---------------- Accesibilidad ---------------- */
+.sidenav__btn:focus-visible,
+.dot:focus-visible,
+.hud__btn:focus-visible,
+.nav-toggle:focus-visible,
+.sidenav__foot a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint i { animation: none; }
+  .panel,
+  .sidenav__btn,
+  .dot,
+  .hud__btn,
+  .loader { transition-duration: 0.01ms; }
 }
