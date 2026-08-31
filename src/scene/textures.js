@@ -167,7 +167,11 @@ let cache = null;
 /** Carga las fotos base. Debe llamarse antes de construir la escena. */
 export async function initTextures(base = '') {
   const entries = await Promise.all(
-    Object.entries(FILES).map(async ([key, file]) => [key, await loadImage(base + file)])
+    Object.entries(FILES).map(async ([key, file]) => [
+      key,
+      // En el empaquetado de un solo archivo las rutas ya son data URI
+      await loadImage(file.startsWith('data:') ? file : base + file)
+    ])
   );
   const photos = Object.fromEntries(entries);
   cache = build(photos);
