@@ -138,7 +138,7 @@ function carGeometries(rand, x, z, rot) {
   return { body, glass, tyre };
 }
 
-export function createEnvironment(env) {
+export function createEnvironment() {
   const t = buildTextures();
   const group = new THREE.Group();
   group.name = 'entorno';
@@ -150,7 +150,6 @@ export function createEnvironment(env) {
     color: 0x9aa96d,
     roughness: 1,
     metalness: 0,
-    envMap: env,
     envMapIntensity: 0.3
   });
   // El plano del suelo tiene UV 0..1, así que la repetición se calcula aparte
@@ -169,7 +168,6 @@ export function createEnvironment(env) {
     map: t.gravel,
     color: 0xe0d3b4,
     roughness: 0.98,
-    envMap: env,
     envMapIntensity: 0.25
   });
   const paths = [];
@@ -193,7 +191,6 @@ export function createEnvironment(env) {
     map: t.stone,
     color: 0xd9d0bd,
     roughness: 0.95,
-    envMap: env,
     envMapIntensity: 0.25
   });
   const walls = [];
@@ -222,7 +219,6 @@ export function createEnvironment(env) {
     map: t.asphalt,
     color: 0xb9b6ae,
     roughness: 0.96,
-    envMap: env,
     envMapIntensity: 0.2
   });
 
@@ -279,14 +275,14 @@ export function createEnvironment(env) {
     if (!geos.length) return;
     const mesh = new THREE.Mesh(
       mergeGeometries(geos),
-      new THREE.MeshStandardMaterial({ color: bodyColors[i], roughness: 0.35, metalness: 0.55, envMap: env, envMapIntensity: 0.9 })
+      new THREE.MeshStandardMaterial({ color: bodyColors[i], roughness: 0.35, metalness: 0.55, envMapIntensity: 0.9 })
     );
     mesh.castShadow = true;
     group.add(mesh);
   });
   const carGlassMesh = new THREE.Mesh(
     mergeGeometries(carGlass),
-    new THREE.MeshStandardMaterial({ color: 0x2a3438, roughness: 0.12, metalness: 0.3, envMap: env, envMapIntensity: 1.1 })
+    new THREE.MeshStandardMaterial({ color: 0x2a3438, roughness: 0.12, metalness: 0.3, envMapIntensity: 1.1 })
   );
   const carTyreMesh = new THREE.Mesh(mergeGeometries(carTyre), new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 0.95 }));
   carGlassMesh.castShadow = true;
@@ -370,7 +366,6 @@ export function createEnvironment(env) {
     color: 0x415c34,
     roughness: 0.92,
     flatShading: true,
-    envMap: env,
     envMapIntensity: 0.25
   });
   const shrubMat = new THREE.MeshStandardMaterial({
@@ -482,7 +477,8 @@ export function createEnvironment(env) {
     furniture.add(bench);
   }
 
-  // Farolas
+  // Farolas: se guardan bombilla y foco para encenderlas de noche
+  const lamps = [];
   for (const [x, z] of [
     [-2.5, 18],
     [11, 18],
@@ -496,15 +492,29 @@ export function createEnvironment(env) {
     head.position.y = 4.24;
     const bulb = new THREE.Mesh(
       new THREE.BoxGeometry(0.34, 0.05, 0.34),
-      new THREE.MeshStandardMaterial({ color: 0xfff2cf, emissive: 0xfff0c8, emissiveIntensity: 0.35 })
+      new THREE.MeshStandardMaterial({ color: 0xfff2cf, emissive: 0xfff0c8, emissiveIntensity: 0.15 })
     );
     bulb.position.y = 4.16;
     lamp.add(post, head, bulb);
     lamp.position.set(x, GROUND_Y, z);
     lamp.traverse((o) => (o.castShadow = true));
     furniture.add(lamp);
+
+    const light = new THREE.PointLight(0xffe6b8, 0, 22, 2);
+    light.position.set(x, GROUND_Y + 4.1, z);
+    light.visible = false;
+    furniture.add(light);
+    lamps.push({ bulb, light });
   }
 
   group.add(furniture);
-  return group;
+
+  // La atmósfera necesita estos materiales para teñir la vegetación por
+  // estación y las farolas para encenderlas de noche.
+  return {
+    group,
+    materials: { grass: grassMat, shrub: shrubMat, pine: pineMat, hills: hillMat },
+    surfaces: [pathMat, asphaltMat, stoneMat],
+    lamps
+  };
 }

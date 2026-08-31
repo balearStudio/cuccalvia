@@ -5,9 +5,13 @@ Recorrido interactivo por el **Centre Universitari de Calvià (CUC)** construido
 hacer scroll, la cámara se acerca, cruza el pórtico y entra: biblioteca, salas de estudio,
 contacto y créditos.
 
-Todo el edificio, el entorno y el mobiliario están **modelados por código** — no hay
-modelos 3D ni texturas externas: las texturas (revoco, piedra, césped, gravilla, madera) se
-generan en un `<canvas>` al arrancar.
+Todo el edificio, el entorno y el mobiliario están **modelados por código**: no hay ningún
+modelo 3D importado. Los acabados exteriores salen de las propias fotografías del centro
+(ver *Texturas*) y el resto se genera en un `<canvas>` al arrancar.
+
+La escena sigue además **la hora, la estación y el tiempo real de Calvià**: el sol está donde
+toca según el reloj, el cielo se cubre o llueve según el parte, la vegetación cambia de color
+con la estación y de noche se encienden las farolas y las luces del edificio.
 
 ## Cómo se navega
 
@@ -19,15 +23,17 @@ generan en un `<canvas>` al arrancar.
 | Arrastrar con el ratón | Orbita suavemente alrededor del encuadre |
 | Botón **Foto real** | Superpone la fotografía de referencia de esa vista |
 | Botón **Órbita** | Movimiento automático de cámara |
+| Indicador de tiempo (arriba a la derecha) | Fija la luz: *Ahora*, *Mañana*, *Tarde*, *Noche* o *Lluvia* |
 
 ## Desarrollo
 
 ```bash
 npm install
-npm run dev      # servidor de desarrollo en http://localhost:5173
-npm run build    # genera dist/
-npm run preview  # sirve dist/
-npm run standalone   # dist/cuc-standalone.html : un único archivo autocontenido
+npm run dev        # servidor de desarrollo en http://localhost:5173
+npm run build      # genera dist/
+npm run preview    # sirve dist/
+npm run standalone # dist/cuc-standalone.html : un único archivo autocontenido
+npm run textures   # vuelve a extraer public/textures/ de las fotografías
 ```
 
 `vite.config.js` usa `base: './'`, así que el contenido de `dist/` se puede publicar tal cual
@@ -47,8 +53,10 @@ src/
     interior.js            vestíbulo, biblioteca y salas de estudio
     environment.js         terreno, pinar, setos, muretes, mobiliario urbano, sierra
     character.js           personaje a escala (1,93 m) del autor
+    atmosphere.js          sol real por hora, tiempo de Open-Meteo y estación
     sky.js                 cúpula de cielo por shader + mapa de entorno (PMREM)
-    textures.js            texturas procedurales en canvas
+    rain.js                lluvia
+    textures.js            texturas: campo de color de las fotos + detalle en canvas
   ui/ui.js                 menú lateral, paneles, puntos y HUD
   styles/main.css          interfaz superpuesta
 public/images/             fotografías de referencia del edificio
@@ -69,6 +77,33 @@ Esa función (`roofSoffitY` en `scene/building.js`) la usan las columnas, el rem
 muros, el muro cortina, la celosía y el techo interior, así que **cambiando la pendiente ahí
 se ajusta todo el conjunto a la vez**.
 
+### Texturas a partir de las fotografías
+
+`npm run textures` ejecuta `scripts/extract-textures.mjs`, que recorta de
+`public/images/cuc-fachada.jpg` el revoco de la fachada, el hormigón del acceso y el murete
+de piedra, **les quita la iluminación** (resta un desenfoque fuerte y devuelve la media del
+parche, así no quedan pegadas las sombras del arbolado ni el degradado del sol), los espeja
+para que sean continuos y los guarda en `public/textures/`. También mide los colores reales
+del revoco, la columna, el vidrio, la piedra y el pavimento en `palette.json`.
+
+Las fotos de partida son de 822 × 313 px, así que aportan el **color y las manchas de gran
+escala** reales, no el detalle fino — que a esa resolución no existe. El grano del mortero,
+las juntas del paño y la veta de la piedra se dibujan encima en un canvas
+(`scene/textures.js`). Para cambiar de recorte basta con tocar las coordenadas de `PATCHES`
+en el script y volver a ejecutarlo.
+
+### Hora, estación y tiempo real
+
+`scene/atmosphere.js` calcula la posición del sol para las coordenadas del CUC y la fecha del
+navegador, y consulta el tiempo a [Open-Meteo](https://open-meteo.com) (gratuita, sin clave y
+con CORS, así que funciona desde una web estática). Si la API no responde, la escena sigue
+con cielo despejado: **el render nunca depende de la red**.
+
+La orientación está en `SITE.facadeAzimuth`: la fachada principal (eje +Z) mira al noroeste,
+leído de la vista aérea —la entrada da al aparcamiento del norte—, de modo que el edificio
+recibe sol de tarde y queda en sombra por la mañana, como en las fotografías. Ese número es
+lo primero que hay que ajustar si se confirma la orientación exacta.
+
 ### Ajustar un encuadre
 
 Con la web abierta, coloca la cámara arrastrando y ejecuta en la consola del navegador:
@@ -80,9 +115,12 @@ __cuc.jump(4)  // salta a una sección sin transición
 
 ## Pendiente
 
-- Sustituir la volumetría provisional del interior (biblioteca y salas de estudio) por el
-  reparto real cuando haya fotografías de dentro.
-- Afinar el entorno con la vista aérea (aparcamiento, accesos rodados, edificios vecinos).
+- **Croquis de planta**: el reparto de las salas de la planta primera (cuatro salas de
+  estudio y un despacho) está puesto a ojo en `ROOMS`, dentro de `scene/interior.js`. Con el
+  croquis se colocan en su sitio cambiando solo esas coordenadas.
+- Afinar la biblioteca de la planta baja con fotografías del interior.
+- Confirmar la orientación real del edificio (`SITE.facadeAzimuth`) y las dimensiones de la
+  planta con la vista aérea a escala.
 
 ## Créditos
 

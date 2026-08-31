@@ -29,7 +29,7 @@ const wallTop = (x, z) => roofSoffitY(x, z) - PLAN.gap;
 /* ------------------------------------------------------------------ */
 /* Materiales                                                          */
 /* ------------------------------------------------------------------ */
-function makeMaterials(env) {
+function makeMaterials() {
   const t = buildTextures();
 
   // El mapa ya lleva el color medido en la foto, así que el material no lo tiñe
@@ -40,7 +40,6 @@ function makeMaterials(env) {
     color: 0xffffff,
     roughness: 0.94,
     metalness: 0,
-    envMap: env,
     envMapIntensity: 0.3
   });
 
@@ -49,7 +48,6 @@ function makeMaterials(env) {
     color: 0xffffff,
     roughness: 0.9,
     metalness: 0,
-    envMap: env,
     envMapIntensity: 0.28
   });
 
@@ -57,7 +55,6 @@ function makeMaterials(env) {
     map: t.stone,
     color: 0xffffff,
     roughness: 0.95,
-    envMap: env,
     envMapIntensity: 0.25
   });
 
@@ -65,7 +62,6 @@ function makeMaterials(env) {
     color: 0xeeece4,
     roughness: 0.52,
     metalness: 0.02,
-    envMap: env,
     envMapIntensity: 0.5
   });
 
@@ -76,7 +72,6 @@ function makeMaterials(env) {
     roughness: 0.045,
     transparent: true,
     opacity: 0.42,
-    envMap: env,
     envMapIntensity: 1.25,
     clearcoat: 1,
     clearcoatRoughness: 0.03,
@@ -92,7 +87,6 @@ function makeMaterials(env) {
     color: 0x2f3538,
     roughness: 0.42,
     metalness: 0.75,
-    envMap: env,
     envMapIntensity: 0.8
   });
 
@@ -100,7 +94,6 @@ function makeMaterials(env) {
     color: 0xa9aeb0,
     roughness: 0.34,
     metalness: 0.9,
-    envMap: env,
     envMapIntensity: 1.0
   });
 
@@ -110,21 +103,18 @@ function makeMaterials(env) {
     color: 0xc3b795,
     roughness: 0.95,
     metalness: 0.05,
-    envMap: env,
     envMapIntensity: 0.4
   });
 
   const soffit = new THREE.MeshStandardMaterial({
     color: 0xdcd6c6,
     roughness: 0.88,
-    envMap: env,
     envMapIntensity: 0.3
   });
 
   const edge = new THREE.MeshStandardMaterial({
     color: 0xcfc9ba,
     roughness: 0.7,
-    envMap: env,
     envMapIntensity: 0.4
   });
 
@@ -571,8 +561,8 @@ function approach(m) {
 /* ------------------------------------------------------------------ */
 /* API                                                                 */
 /* ------------------------------------------------------------------ */
-export function createBuilding(env) {
-  const m = makeMaterials(env);
+export function createBuilding() {
+  const m = makeMaterials();
   const group = new THREE.Group();
   group.name = 'edificio';
   group.add(plinth(m), shell(m), curtainWall(m), roof(m), columns(m), approach(m));

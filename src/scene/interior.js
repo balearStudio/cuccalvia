@@ -151,7 +151,7 @@ function roundTableGeometries(x, z) {
 /* Escena                                                              */
 /* ------------------------------------------------------------------ */
 
-export function createInterior(env) {
+export function createInterior() {
   const t = buildTextures();
   const group = new THREE.Group();
   group.name = 'interior';
@@ -168,26 +168,23 @@ export function createInterior(env) {
     color: 0xffffff,
     roughness: 0.28,
     metalness: 0.04,
-    envMap: env,
     envMapIntensity: 0.5
   });
   const ceilingMat = new THREE.MeshStandardMaterial({ map: t.ceiling, color: 0xffffff, roughness: 0.94 });
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xf3f2ee, roughness: 0.95 });
   const slabMat = new THREE.MeshStandardMaterial({ color: 0xe9e7e0, roughness: 0.92 });
-  const laminate = new THREE.MeshStandardMaterial({ color: 0xe9e1c8, roughness: 0.42, envMap: env, envMapIntensity: 0.35 });
-  const tubular = new THREE.MeshStandardMaterial({ color: 0x9ba1a5, metalness: 0.75, roughness: 0.38, envMap: env, envMapIntensity: 0.7 });
+  const laminate = new THREE.MeshStandardMaterial({ color: 0xe9e1c8, roughness: 0.42, envMapIntensity: 0.35 });
+  const tubular = new THREE.MeshStandardMaterial({ color: 0x9ba1a5, metalness: 0.75, roughness: 0.38, envMapIntensity: 0.7 });
   const seatBlue = new THREE.MeshStandardMaterial({ color: 0x2a4f9e, roughness: 0.92 });
   const seatBlack = new THREE.MeshStandardMaterial({ color: 0x26282b, roughness: 0.9 });
   const woodMat = new THREE.MeshStandardMaterial({ map: t.wood, color: 0xd9bd95, roughness: 0.7 });
   const darkWood = new THREE.MeshStandardMaterial({ map: t.wood, color: 0x9a7c56, roughness: 0.75 });
   const metal = new THREE.MeshStandardMaterial({ color: 0x8f979b, metalness: 0.85, roughness: 0.35 });
   const glassRail = new THREE.MeshPhysicalMaterial({
-    color: 0xbcd6dd, transparent: true, opacity: 0.22, roughness: 0.05,
-    envMap: env, envMapIntensity: 1, side: THREE.DoubleSide
+    color: 0xbcd6dd, transparent: true, opacity: 0.22, roughness: 0.05, envMapIntensity: 1, side: THREE.DoubleSide
   });
   const partitionGlass = new THREE.MeshPhysicalMaterial({
-    color: 0xd6e4e8, transparent: true, opacity: 0.16, roughness: 0.04,
-    envMap: env, envMapIntensity: 1, side: THREE.DoubleSide
+    color: 0xd6e4e8, transparent: true, opacity: 0.16, roughness: 0.04, envMapIntensity: 1, side: THREE.DoubleSide
   });
   const lampMat = new THREE.MeshStandardMaterial({
     color: 0xfffdf6, emissive: 0xfff6e6, emissiveIntensity: 1.5, roughness: 0.4
