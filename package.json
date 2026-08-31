@@ -8,12 +8,14 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "standalone": "vite build && node scripts/build-standalone.mjs"
+    "standalone": "vite build && node scripts/build-standalone.mjs",
+    "textures": "node scripts/extract-textures.mjs"
   },
   "dependencies": {
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "sharp": "^0.35.4",
     "vite": "^7.1.5"
   }
 }

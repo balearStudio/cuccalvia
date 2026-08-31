@@ -88,14 +88,14 @@ export const SECTIONS = [
     nav: 'Salas de estudio',
     kicker: '05 · Interior',
     title: 'Salas de estudio',
-    text: 'En la planta superior, las salas de trabajo se asoman al vestíbulo desde la balconada y reciben luz por las ventanas cuadradas de la fachada. Puestos individuales, salas de grupo y espacios de trabajo colaborativo. (Volumetría provisional: se ajustará con las fotos del interior.)',
+    text: 'Toda la planta primera son salas de estudio: mesas corridas de laminado con sillas azules, puestos individuales con faldón contra el muro de las ventanas cuadradas, una sala pequeña de grupo con mesa redonda y pizarra, y un despacho. Terrazo pulido, falso techo registrable y zócalo de color, sala por sala.',
     facts: [
-      { k: 'Puestos', v: 'Individuales' },
-      { k: 'Grupos', v: 'Salas reservables' },
+      { k: 'Planta', v: 'Primera' },
+      { k: 'Salas', v: '4 + despacho' },
       { k: 'Reserva', v: 'cuc.reservio.com' }
     ],
-    camera: { position: [-7.6, 5.95, -4.6], target: [5.5, 5.5, -12.5] },
-    via: [-6, 5.4, 0.5],
+    camera: { position: [-2.9, 6.0, -7.9], target: [-10.4, 5.25, -13.8] },
+    via: [-4, 5.4, -0.5],
     interior: true
   },
   {
