@@ -392,18 +392,63 @@ export function createEnvironment() {
   stairWallMesh.receiveShadow = true;
   group.add(stairWallMesh);
 
-  /* ---------------- Piscina y pista, al este ---------------- */
+  /* ---------------- Instalaciones deportivas, al este ---------------- */
+  // En la vista de satélite, pegada al edificio hay una pista de pádel verde;
+  // la piscina queda algo más al norte, detrás de ella.
   const sports = new THREE.Group();
+  const deckMat = new THREE.MeshStandardMaterial({ map: t.plaza, color: 0xe0d4bd, roughness: 0.94 });
 
-  // Solera del recinto
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(26, 0.3, 34), new THREE.MeshStandardMaterial({
-    map: t.plaza, color: 0xe8dcc6, roughness: 0.92
-  }));
-  deck.position.set(45, GROUND_Y + 0.15, -4);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(24, 0.3, 46), deckMat);
+  deck.position.set(38, GROUND_Y + 0.15, -12);
   deck.receiveShadow = true;
   sports.add(deck);
 
-  // Vaso de la piscina
+  // Pista de pádel
+  const courtX = 33;
+  const courtZ = -4;
+  const court = new THREE.Mesh(
+    new THREE.BoxGeometry(10.4, 0.06, 20.4),
+    new THREE.MeshStandardMaterial({ color: 0x2f7a55, roughness: 0.95 })
+  );
+  court.position.set(courtX, GROUND_Y + 0.33, courtZ);
+  court.receiveShadow = true;
+  sports.add(court);
+  const courtLines = [];
+  for (const [w, d, dx, dz] of [
+    [10, 0.09, 0, 10], [10, 0.09, 0, -10], [0.09, 20, 5, 0], [0.09, 20, -5, 0],
+    [10, 0.09, 0, 3], [10, 0.09, 0, -3], [0.09, 6, 0, 6.5], [0.09, 6, 0, -6.5]
+  ]) {
+    courtLines.push(new THREE.BoxGeometry(w, 0.02, d).translate(courtX + dx, GROUND_Y + 0.37, courtZ + dz));
+  }
+  sports.add(new THREE.Mesh(mergeGeometries(courtLines), new THREE.MeshStandardMaterial({ color: 0xf2f2ec, roughness: 0.9 })));
+
+  // Cerramiento de la pista: malla y vidrio en los fondos
+  const cage = [];
+  for (let i = 0; i <= 8; i++) {
+    const z = courtZ - 10 + i * 2.5;
+    for (const sx of [-1, 1]) cage.push(new THREE.CylinderGeometry(0.05, 0.05, 4, 6).translate(courtX + sx * 5.2, GROUND_Y + 2.3, z));
+  }
+  sports.add(new THREE.Mesh(mergeGeometries(cage), new THREE.MeshStandardMaterial({
+    color: 0x2b3033, metalness: 0.6, roughness: 0.5
+  })));
+  const cageMat = new THREE.MeshStandardMaterial({
+    color: 0x36403f, transparent: true, opacity: 0.22, side: THREE.DoubleSide, roughness: 0.6
+  });
+  for (const sx of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(20.4, 4), cageMat);
+    wall.rotation.y = Math.PI / 2;
+    wall.position.set(courtX + sx * 5.2, GROUND_Y + 2.3, courtZ);
+    sports.add(wall);
+  }
+  for (const sz of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(10.4, 4), cageMat);
+    wall.position.set(courtX, GROUND_Y + 2.3, courtZ + sz * 10.2);
+    sports.add(wall);
+  }
+
+  // Piscina, detrás de la pista
+  const poolX = 38;
+  const poolZ = -30;
   const water = new THREE.Mesh(
     new THREE.BoxGeometry(12.5, 0.24, 25),
     new THREE.MeshPhysicalMaterial({
@@ -411,38 +456,36 @@ export function createEnvironment() {
       transparent: true, opacity: 0.92
     })
   );
-  water.position.set(43, GROUND_Y + 0.24, -4);
+  water.position.set(poolX, GROUND_Y + 0.24, poolZ);
   sports.add(water);
   const coping = [];
   for (const [w, d, dx, dz] of [[13.3, 0.4, 0, 12.7], [13.3, 0.4, 0, -12.7], [0.4, 25.8, 6.45, 0], [0.4, 25.8, -6.45, 0]]) {
-    coping.push(new THREE.BoxGeometry(w, 0.14, d).translate(43 + dx, GROUND_Y + 0.34, -4 + dz));
+    coping.push(new THREE.BoxGeometry(w, 0.14, d).translate(poolX + dx, GROUND_Y + 0.34, poolZ + dz));
   }
   sports.add(new THREE.Mesh(mergeGeometries(coping), new THREE.MeshStandardMaterial({ color: 0xeee9dc, roughness: 0.9 })));
-  // Corcheras
   const lanes = [];
-  for (let i = -2; i <= 2; i++) lanes.push(new THREE.BoxGeometry(0.12, 0.03, 24).translate(43 + i * 2.4, GROUND_Y + 0.37, -4));
+  for (let i = -2; i <= 2; i++) lanes.push(new THREE.BoxGeometry(0.12, 0.03, 24).translate(poolX + i * 2.4, GROUND_Y + 0.37, poolZ));
   sports.add(new THREE.Mesh(mergeGeometries(lanes), new THREE.MeshStandardMaterial({ color: 0xe4e7ea, roughness: 0.7 })));
 
-  // Valla perimetral y báculos de alumbrado
+  // Valla del recinto por el lado del edificio
   const fencePosts = [];
-  for (let i = 0; i <= 11; i++) {
-    const z = -4 - 17 + i * 3.1;
-    fencePosts.push(new THREE.CylinderGeometry(0.06, 0.06, 3.0, 6).translate(32.2, GROUND_Y + 1.8, z));
+  for (let i = 0; i <= 15; i++) {
+    fencePosts.push(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 6).translate(26.2, GROUND_Y + 1.6, -34 + i * 3.1));
   }
   sports.add(new THREE.Mesh(mergeGeometries(fencePosts), new THREE.MeshStandardMaterial({
     color: 0x33383b, metalness: 0.6, roughness: 0.5
   })));
   const fenceMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(34, 3.0),
+    new THREE.PlaneGeometry(46, 2.6),
     new THREE.MeshStandardMaterial({ color: 0x2f3437, transparent: true, opacity: 0.2, side: THREE.DoubleSide, roughness: 0.6 })
   );
   fenceMesh.rotation.y = Math.PI / 2;
-  fenceMesh.position.set(32.2, GROUND_Y + 1.8, -4);
+  fenceMesh.position.set(26.2, GROUND_Y + 1.6, -11);
   sports.add(fenceMesh);
 
-  // Báculos blancos altos del recinto deportivo
+  // Báculos blancos del recinto
   const poleMat = new THREE.MeshStandardMaterial({ color: 0xdcdedd, metalness: 0.4, roughness: 0.5 });
-  for (const [px, pz] of [[34, 8], [34, -16], [54, 8], [54, -16]]) {
+  for (const [px, pz] of [[28, 8], [28, -20], [48, 6], [48, -22], [48, -40]]) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 7.5, 8), poleMat);
     pole.position.set(px, GROUND_Y + 3.75, pz);
     pole.castShadow = true;
@@ -491,7 +534,7 @@ export function createEnvironment() {
     (z > -28 && z < -16 && x > -32 && x < 32) || // talud
     (x > -27 && x < 31 && z > -50 && z < -25) || // aparcamiento y torre
     (x > 12 && x < 21 && z > -30 && z < 8) || // escalera del flanco derecho
-    (x > 30 && x < 60 && z > -24 && z < 16); // piscina y pista
+    (x > 25 && x < 52 && z > -46 && z < 14); // pista de pádel y piscina
 
   // Detrás del talud el terreno está a la cota del aparcamiento
   const groundAt = (z) => (z < -27 ? PARK_Y : GROUND_Y);

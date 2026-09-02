@@ -23,10 +23,11 @@ export const SITE = {
   lon: 2.5686,
   timezone: 'Europe/Madrid',
   // Rumbo (grados desde el norte) al que mira el eje +Z, o sea la fachada
-  // principal. Leído de la vista aérea: la entrada da al aparcamiento del
-  // norte, así que el edificio recibe sol de tarde. Ajustar aquí si se
-  // confirma la orientación exacta.
-  facadeAzimuth: 315
+  // principal. Medido sobre la vista de satélite: el edificio está casi
+  // alineado con los ejes cardinales, con el pórtico al sur y el aparcamiento
+  // al norte. Lo confirman la sombra del gran vuelo, que en la aérea cae hacia
+  // el norte, y las fotos de fachada, iluminadas de lleno a mediodía.
+  facadeAzimuth: 178
 };
 
 /* ------------------------------------------------------------------ */
@@ -120,11 +121,18 @@ export function solarPosition(date, lat = SITE.lat, lon = SITE.lon) {
   return { elevation, azimuth };
 }
 
-/** Pasa elevación y acimut a una dirección en los ejes de la escena. */
+/**
+ * Pasa elevación y acimut a una dirección en los ejes de la escena.
+ *
+ * La escena está montada con +Z hacia la fachada (sur) y +X hacia el este, que
+ * es como se ve en la vista de satélite. El acimut, en cambio, crece en sentido
+ * horario desde el norte, así que al girar desde +Z el acimut avanza hacia −X,
+ * no hacia +X: de ahí el signo de la componente X.
+ */
 export function sunDirection(elevation, azimuth) {
   const bearing = (azimuth - SITE.facadeAzimuth) * RAD;
   return new THREE.Vector3(
-    Math.cos(elevation) * Math.sin(bearing),
+    -Math.cos(elevation) * Math.sin(bearing),
     Math.sin(elevation),
     Math.cos(elevation) * Math.cos(bearing)
   ).normalize();

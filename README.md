@@ -123,10 +123,11 @@ navegador, y consulta el tiempo a [Open-Meteo](https://open-meteo.com) (gratuita
 con CORS, así que funciona desde una web estática). Si la API no responde, la escena sigue
 con cielo despejado: **el render nunca depende de la red**.
 
-La orientación está en `SITE.facadeAzimuth`: la fachada principal (eje +Z) mira al noroeste,
-leído de la vista aérea —la entrada da al aparcamiento del norte—, de modo que el edificio
-recibe sol de tarde y queda en sombra por la mañana, como en las fotografías. Ese número es
-lo primero que hay que ajustar si se confirma la orientación exacta.
+La orientación está en `SITE.facadeAzimuth`: la fachada principal (eje +Z) **mira al sur**
+(178°), medido sobre la vista de satélite, donde el edificio aparece casi alineado con los
+ejes cardinales. Lo confirman la sombra del gran vuelo, que en la aérea cae hacia el norte, y
+las fotografías de fachada, iluminadas de lleno a mediodía. El pórtico queda al sur y el
+aparcamiento al norte, detrás y por encima.
 
 ### Ajustar un encuadre
 
