@@ -65,6 +65,17 @@ reference/photos/          fotografías a resolución completa (no se sirven:
                            solo alimentan la extracción de texturas)
 ```
 
+### Topografía del solar
+
+El solar está en ladera. El edificio y su explanada de acceso están abajo, a `y = -0.9`; el
+**aparcamiento queda detrás y a la cota de la cubierta** (`PARK_Y = 7.6`), con la torre de
+escaleras y ascensor rotulada CUC. Entre ambos hay un talud, y por el **flanco derecho** sube
+la escalera que salva los 8,5 m de desnivel en cuatro tramos con rellanos, encajada entre
+parapetos macizos de hormigón. La piscina y la pista quedan al este, a la cota baja.
+
+Como hay dos cotas, el arbolado se planta con `groundAt(z)`: los pinos de detrás del talud
+arrancan ya en la cota del aparcamiento.
+
 ### Geometría del edificio
 
 El edificio está centrado en el origen: la fachada principal mira hacia **+Z** (de `x = -12`

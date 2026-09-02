@@ -20,7 +20,7 @@ function rng(seed) {
 }
 
 /** Pino de parasol mediterráneo: tronco esbelto y copa ancha y aplanada. */
-function pineGeometries(rand, x, z, scale) {
+function pineGeometries(rand, x, z, scale, baseY = GROUND_Y) {
   const trunks = [];
   const crowns = [];
   const h = (6.5 + rand() * 4.0) * scale;
@@ -30,7 +30,7 @@ function pineGeometries(rand, x, z, scale) {
   const trunk = new THREE.CylinderGeometry(0.13 * scale, 0.3 * scale, h, 6, 1);
   trunk.translate(0, h / 2, 0);
   trunk.rotateZ(lean);
-  trunk.translate(x, GROUND_Y, z);
+  trunk.translate(x, baseY, z);
   trunks.push(trunk);
 
   // Ramas bajas insinuadas
@@ -41,7 +41,7 @@ function pineGeometries(rand, x, z, scale) {
     b.translate(0, bl / 2, 0);
     b.rotateZ((rand() - 0.5) * 1.6);
     b.rotateY(rand() * Math.PI * 2);
-    b.translate(x - tilt * 0.6, GROUND_Y + h * (0.55 + rand() * 0.2), z);
+    b.translate(x - tilt * 0.6, baseY + h * (0.55 + rand() * 0.2), z);
     trunks.push(b);
   }
 
@@ -55,7 +55,7 @@ function pineGeometries(rand, x, z, scale) {
     const rad = rand() * 0.9 * scale;
     g.translate(
       x - tilt + Math.cos(a) * rad,
-      GROUND_Y + h * (0.9 + i * 0.07) + rand() * 0.4,
+      baseY + h * (0.9 + i * 0.07) + rand() * 0.4,
       z + Math.sin(a) * rad
     );
     crowns.push(g);
@@ -68,7 +68,7 @@ function pineGeometries(rand, x, z, scale) {
     const a = rand() * Math.PI * 2;
     g.translate(
       x - tilt * 0.8 + Math.cos(a) * 2.2 * scale,
-      GROUND_Y + h * (0.72 + rand() * 0.14),
+      baseY + h * (0.72 + rand() * 0.14),
       z + Math.sin(a) * 2.2 * scale
     );
     crowns.push(g);
@@ -81,7 +81,7 @@ function distantHills(rand) {
   const geos = [];
   for (let i = 0; i < 26; i++) {
     const a = rand() * Math.PI * 2;
-    const r = 150 + rand() * 120;
+    const r = 175 + rand() * 120;
     const w = 60 + rand() * 110;
     const h = 14 + rand() * 34;
     const g = new THREE.IcosahedronGeometry(1, 1);
@@ -94,10 +94,10 @@ function distantHills(rand) {
 }
 
 /** Arbusto / seto redondeado. */
-function shrubGeometry(rand, x, z, r) {
+function shrubGeometry(rand, x, z, r, baseY = GROUND_Y) {
   const g = new THREE.IcosahedronGeometry(r, 1);
   g.scale(1 + rand() * 0.3, 0.65 + rand() * 0.3, 1 + rand() * 0.3);
-  g.translate(x, GROUND_Y + r * 0.45, z);
+  g.translate(x, baseY + r * 0.45, z);
   return g;
 }
 
@@ -217,11 +217,11 @@ export function createEnvironment() {
   wallMesh.receiveShadow = true;
   group.add(wallMesh);
 
-  /* ---------------- Aparcamiento y pasarela de acceso ---------------- */
-  // En la vista aérea el aparcamiento queda al norte, sobre el edificio, y de él
-  // baja una pasarela hasta la entrada; la pista de tenis está al este.
-  const PARK_Y = GROUND_Y + 2.2;
-  // Hormigón impreso con despiece en abanico, como en las fotos del aparcamiento
+  /* ---------------- Aparcamiento, arriba y detrás ---------------- */
+  // El solar está en ladera: el aparcamiento queda detrás del edificio y a la
+  // cota de la cubierta, y de él se baja a la entrada por la escalera que
+  // recorre el flanco derecho.
+  const PARK_Y = 7.6;
   const asphaltMat = new THREE.MeshStandardMaterial({
     map: t.asphalt,
     color: 0xffffff,
@@ -229,22 +229,35 @@ export function createEnvironment() {
     envMapIntensity: 0.2
   });
 
-  const lot = new THREE.Mesh(new THREE.BoxGeometry(42, 0.3, 19), asphaltMat);
-  lot.position.set(5, PARK_Y - 0.15, 46);
+  const lot = new THREE.Mesh(new THREE.BoxGeometry(52, 0.3, 22), asphaltMat);
+  lot.position.set(2, PARK_Y - 0.15, -37);
   lot.receiveShadow = true;
   group.add(lot);
 
-  // Talud y muro de contención hacia el edificio
+  // Talud entre el edificio y el aparcamiento, con su muro de coronación
+  const bankRise = PARK_Y - 0.3 - GROUND_Y;
+  const bankRun = 8.5;
+  const bank = new THREE.Mesh(
+    new THREE.BoxGeometry(62, 0.8, Math.hypot(bankRun, bankRise)),
+    new THREE.MeshStandardMaterial({ map: t.grass, color: 0x8f9a68, roughness: 1 })
+  );
+  bank.position.set(2, (GROUND_Y + PARK_Y - 0.3) / 2, -18 - bankRun / 2);
+  bank.rotation.x = Math.atan2(bankRise, bankRun); // el lado de atrás sube
+  bank.receiveShadow = true;
+  group.add(bank);
+  // Relleno macizo bajo el aparcamiento
+  const fillBox = new THREE.Mesh(
+    new THREE.BoxGeometry(62, PARK_Y - GROUND_Y, 30),
+    new THREE.MeshStandardMaterial({ map: t.grass, color: 0x8a9463, roughness: 1 })
+  );
+  fillBox.position.set(2, (GROUND_Y + PARK_Y) / 2 - 0.2, -41);
+  fillBox.receiveShadow = true;
+  group.add(fillBox);
+
   const retaining = [];
-  retaining.push((() => {
-    const g = new THREE.BoxGeometry(42, 2.2, 0.6);
-    g.translate(5, GROUND_Y + 1.1, 36.5);
-    return g;
-  })());
+  retaining.push(new THREE.BoxGeometry(52, 1.1, 0.6).translate(2, PARK_Y + 0.25, -26.2));
   for (const sx of [-1, 1]) {
-    const g = new THREE.BoxGeometry(0.6, 2.2, 19);
-    g.translate(5 + sx * 21, GROUND_Y + 1.1, 46);
-    retaining.push(g);
+    retaining.push(new THREE.BoxGeometry(0.6, 1.1, 22).translate(2 + sx * 26, PARK_Y + 0.25, -37));
   }
   const retainingMesh = new THREE.Mesh(mergeGeometries(retaining), stoneMat);
   retainingMesh.castShadow = true;
@@ -253,36 +266,34 @@ export function createEnvironment() {
 
   // Torre de escaleras y ascensor, con el rótulo CUC
   const towerMat = new THREE.MeshStandardMaterial({ map: t.plaza, color: 0xd8c1ae, roughness: 0.94 });
-  const tower = new THREE.Mesh(new THREE.BoxGeometry(4.4, 6.2, 4.0), towerMat);
-  tower.position.set(-13.5, GROUND_Y + 3.1, 33.5);
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(4.4, 6.4, 4.0), towerMat);
+  tower.position.set(-14, PARK_Y + 3.2, -29.5);
   tower.castShadow = true;
   tower.receiveShadow = true;
   group.add(tower);
   const towerCap = new THREE.Mesh(new THREE.BoxGeometry(4.7, 0.22, 4.3), towerMat);
-  towerCap.position.set(-13.5, GROUND_Y + 6.3, 33.5);
+  towerCap.position.set(-14, PARK_Y + 6.5, -29.5);
   towerCap.castShadow = true;
   group.add(towerCap);
-  // Antena y foco de la cubierta de la torre
   const mastMat = new THREE.MeshStandardMaterial({ color: 0x5b6063, metalness: 0.6, roughness: 0.5 });
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.2, 6), mastMat);
-  mast.position.set(-12.4, GROUND_Y + 8.0, 33.5);
+  mast.position.set(-12.9, PARK_Y + 8.2, -29.5);
   group.add(mast);
-  // Rótulo CUC en relieve
   const cucMat = new THREE.MeshStandardMaterial({ color: 0xf1efe8, roughness: 0.8 });
   const cucLetters = [];
-  let cx0 = -14.6;
+  let cx0 = -15.1;
   for (const ch of ['C', 'U', 'C']) {
-    cucLetters.push(new THREE.BoxGeometry(0.62, 0.72, 0.06).translate(cx0, GROUND_Y + 4.2, 35.53));
-    if (ch === 'U') cucLetters.push(new THREE.BoxGeometry(0.4, 0.2, 0.07).translate(cx0, GROUND_Y + 4.5, 35.54));
+    cucLetters.push(new THREE.BoxGeometry(0.62, 0.72, 0.06).translate(cx0, PARK_Y + 4.3, -27.53));
+    if (ch === 'U') cucLetters.push(new THREE.BoxGeometry(0.4, 0.2, 0.07).translate(cx0, PARK_Y + 4.6, -27.54));
     cx0 += 0.86;
   }
   group.add(new THREE.Mesh(mergeGeometries(cucLetters), cucMat));
 
   // Marcas de las plazas
   const marks = [];
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 14; i++) {
     const g = new THREE.BoxGeometry(0.12, 0.02, 4.6);
-    g.translate(-13 + i * 2.5, PARK_Y + 0.01, 43.5);
+    g.translate(-18 + i * 2.5, PARK_Y + 0.01, -33);
     marks.push(g);
   }
   group.add(
@@ -290,17 +301,14 @@ export function createEnvironment() {
   );
 
   // Coches aparcados
-  const carBody = [];
   const carGlass = [];
   const carTyre = [];
   const bodyColors = [0x2b3138, 0xb8bcc0, 0x8d99a6, 0x6b2f2f, 0x2f4a6b, 0xd8d5cc];
   const bodyBuckets = bodyColors.map(() => []);
-  for (let i = 0; i < 7; i++) {
-    const x = -11.8 + i * 2.5 + rand() * 0.3;
-    const c = carGeometries(rand, x, 43.4 + rand() * 0.4, Math.PI * (rand() > 0.5 ? 1 : 0));
-    c.body.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
-    c.glass.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
-    c.tyre.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
+  for (let i = 0; i < 9; i++) {
+    const x = -16.8 + i * 2.5 + rand() * 0.3;
+    const c = carGeometries(rand, x, -33.1 + rand() * 0.4, Math.PI * (rand() > 0.5 ? 1 : 0));
+    for (const list of [c.body, c.glass, c.tyre]) list.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
     bodyBuckets[Math.floor(rand() * bodyColors.length)].push(...c.body);
     carGlass.push(...c.glass);
     carTyre.push(...c.tyre);
@@ -314,74 +322,75 @@ export function createEnvironment() {
     mesh.castShadow = true;
     group.add(mesh);
   });
-  const carGlassMesh = new THREE.Mesh(
+  group.add(new THREE.Mesh(
     mergeGeometries(carGlass),
     new THREE.MeshStandardMaterial({ color: 0x2a3438, roughness: 0.12, metalness: 0.3, envMapIntensity: 1.1 })
-  );
-  const carTyreMesh = new THREE.Mesh(mergeGeometries(carTyre), new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 0.95 }));
-  carGlassMesh.castShadow = true;
-  group.add(carGlassMesh, carTyreMesh);
-  void carBody;
+  ));
+  group.add(new THREE.Mesh(mergeGeometries(carTyre), new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 0.95 })));
 
-  // Escalera de zigzag entre el aparcamiento y la explanada, con los parapetos
-  // macizos de hormigón que se ven en las fotos del jardín
-  const zig = new THREE.Group();
-  const stepMat = new THREE.MeshStandardMaterial({ map: t.plaza, color: 0xffffff, roughness: 0.9 });
-  const parapetMat = new THREE.MeshStandardMaterial({ map: t.stone, color: 0xd8cdba, roughness: 0.95 });
-  const flightSteps = 7;
-  const rise = 2.2 / (flightSteps * 2);
-  const run = 0.34;
-  const flights = [
-    { x: -6.6, z0: 34.0, dir: -1 },
-    { x: -4.2, z0: 34.0 - flightSteps * run - 1.6, dir: -1 }
-  ];
-  let level = PARK_Y;
-  const zigSteps = [];
-  const zigWalls = [];
-  for (const f of flights) {
-    for (let i = 0; i < flightSteps; i++) {
-      level -= rise;
-      zigSteps.push(new THREE.BoxGeometry(2.2, rise + 0.02, run).translate(f.x, level + rise / 2, f.z0 + f.dir * (i * run)));
-    }
-    // Rellano
-    zigSteps.push(new THREE.BoxGeometry(2.6, 0.16, 1.6).translate(f.x + 1.2, level - 0.08, f.z0 + f.dir * (flightSteps * run + 0.8)));
-    for (const sx of [-1, 1]) {
-      zigWalls.push(
-        new THREE.BoxGeometry(0.34, 1.15, flightSteps * run + 1.8).translate(
-          f.x + sx * 1.27,
-          level + 0.9,
-          f.z0 + f.dir * (flightSteps * run / 2 + 0.4)
-        )
-      );
+  /* ------- Escalera del flanco derecho: de la explanada al aparcamiento ------- */
+  // Sube los 8,5 m de desnivel en cuatro tramos con rellanos, encajada entre
+  // parapetos macizos de hormigón, como en las fotos.
+  const stairSteps = [];
+  const stairWalls = [];
+  const stairX = 15.4;
+  const stairWidth = 2.4;
+  const risers = 45;
+  const rise = (PARK_Y - GROUND_Y) / risers;
+  const run = 0.3;
+  const perFlight = 11;
+
+  let sy = GROUND_Y;
+  let sz = 5.0;
+  let flightStart = sz;
+  for (let i = 0; i < risers; i++) {
+    sy += rise;
+    sz -= run;
+    stairSteps.push(new THREE.BoxGeometry(stairWidth, rise + 0.02, run + 0.01).translate(stairX, sy - rise / 2, sz));
+    const endOfFlight = (i + 1) % perFlight === 0 && i < risers - 1;
+    if (endOfFlight) {
+      // Rellano
+      stairSteps.push(new THREE.BoxGeometry(stairWidth, 0.18, 1.7).translate(stairX, sy - 0.09, sz - 0.95));
+      // Parapetos del tramo recién terminado
+      const len = flightStart - (sz - 1.8);
+      for (const sx of [-1, 1]) {
+        stairWalls.push(
+          new THREE.BoxGeometry(0.34, 1.15, len).translate(
+            stairX + sx * (stairWidth / 2 + 0.17),
+            sy - (perFlight * rise) / 2 + 0.5,
+            (flightStart + sz - 1.8) / 2
+          )
+        );
+      }
+      sz -= 1.8;
+      flightStart = sz;
     }
   }
-  zig.add(new THREE.Mesh(mergeGeometries(zigSteps), stepMat));
-  const zigWallMesh = new THREE.Mesh(mergeGeometries(zigWalls), parapetMat);
-  zigWallMesh.castShadow = true;
-  zig.add(zigWallMesh);
-  zig.traverse((o) => {
-    if (o.isMesh) o.receiveShadow = true;
-  });
-  group.add(zig);
-
-  // Pasarela desde el aparcamiento hasta la plaza de acceso
-  const walkway = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.25, 8.6), pathMat);
-  walkway.position.set(4, GROUND_Y + 1.1, 32.4);
-  walkway.rotation.x = -Math.atan(2.2 / 8.6);
-  walkway.castShadow = true;
-  walkway.receiveShadow = true;
-  group.add(walkway);
-
-  const parapets = [];
+  // Parapetos del último tramo
   for (const sx of [-1, 1]) {
-    const g = new THREE.BoxGeometry(0.3, 1.0, 9.2);
-    g.translate(4 + sx * 2.45, GROUND_Y + 1.65, 32.4);
-    g.rotateX(0);
-    parapets.push(g);
+    stairWalls.push(
+      new THREE.BoxGeometry(0.34, 1.15, flightStart - sz + 0.4).translate(
+        stairX + sx * (stairWidth / 2 + 0.17),
+        sy - (perFlight * rise) / 2 + 0.5,
+        (flightStart + sz) / 2
+      )
+    );
   }
-  const parapetMesh = new THREE.Mesh(mergeGeometries(parapets), stoneMat);
-  parapetMesh.castShadow = true;
-  group.add(parapetMesh);
+  // Tramo final a nivel hasta el borde del aparcamiento
+  stairSteps.push(new THREE.BoxGeometry(stairWidth + 1.4, 0.2, Math.abs(sz + 26) + 1).translate(stairX, PARK_Y - 0.1, (sz - 26) / 2));
+
+  const stairMesh = new THREE.Mesh(mergeGeometries(stairSteps), new THREE.MeshStandardMaterial({
+    map: t.plaza, color: 0xffffff, roughness: 0.9
+  }));
+  stairMesh.receiveShadow = true;
+  stairMesh.castShadow = true;
+  group.add(stairMesh);
+  const stairWallMesh = new THREE.Mesh(mergeGeometries(stairWalls), new THREE.MeshStandardMaterial({
+    map: t.stone, color: 0xd8cdba, roughness: 0.95
+  }));
+  stairWallMesh.castShadow = true;
+  stairWallMesh.receiveShadow = true;
+  group.add(stairWallMesh);
 
   /* ---------------- Piscina y pista, al este ---------------- */
   const sports = new THREE.Group();
@@ -477,9 +486,15 @@ export function createEnvironment() {
     return Math.hypot(x - px, z - pz) < 13;
   };
   const busy = (x, z) =>
-    (z > 2 && x > -26 && x < 30) || // frente del edificio y acceso
-    (z > 28 && x > -22 && x < 30) || // aparcamiento, torre y escalera
+    (z > 2 && x > -26 && x < 30) || // frente del edificio y explanada
+    (x > -14 && x < 14 && z > -27 && z < 2) || // el propio edificio
+    (z > -28 && z < -16 && x > -32 && x < 32) || // talud
+    (x > -27 && x < 31 && z > -50 && z < -25) || // aparcamiento y torre
+    (x > 12 && x < 21 && z > -30 && z < 8) || // escalera del flanco derecho
     (x > 30 && x < 60 && z > -24 && z < 16); // piscina y pista
+
+  // Detrás del talud el terreno está a la cota del aparcamiento
+  const groundAt = (z) => (z < -27 ? PARK_Y : GROUND_Y);
   for (let i = 0; i < 700 && spots.length < 96; i++) {
     const a = rand() * Math.PI * 2;
     const r = 26 + rand() * 56;
@@ -491,13 +506,14 @@ export function createEnvironment() {
   }
   // Pinos escogidos que enmarcan el edificio (como en las fotos)
   spots.push(
-    [-31, -2], [-27, -16], [-19, -28], [-4, -30], [10, -32], [24, -26],
-    [31, -10], [34, 2], [30, 14], [26, 24], [-34, 12], [-38, 26]
+    [-31, -2], [-33, -14], [31, -10], [34, 2], [26, 24], [-34, 12], [-38, 26],
+    // Sobre el aparcamiento, ya en la cota alta
+    [-31, -34], [-30, -46], [34, -34], [33, -46], [-8, -54], [12, -56], [24, -52]
   );
 
   for (const [x, z] of spots) {
     const s = 0.75 + rand() * 0.6;
-    const p = pineGeometries(rand, x, z, s);
+    const p = pineGeometries(rand, x, z, s, groundAt(z));
     trunks.push(...p.trunks);
     crowns.push(...p.crowns);
   }
@@ -513,7 +529,7 @@ export function createEnvironment() {
     const x = Math.cos(a) * r + 3;
     const z = Math.sin(a) * r + 12;
     if (x > -2 && x < 11 && z < 26) continue;
-    shrubs.push(shrubGeometry(rand, x, z, 0.6 + rand() * 0.8));
+    shrubs.push(shrubGeometry(rand, x, z, 0.6 + rand() * 0.8, groundAt(z)));
   }
 
   // Sierra de fondo
