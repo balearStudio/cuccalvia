@@ -67,9 +67,13 @@ reference/photos/          fotografías a resolución completa (no se sirven:
 
 ### Topografía del solar
 
+El edificio tiene dos plantas —biblioteca abajo, salas de estudio arriba— y una **tercera que
+solo ocupa la torre del ascensor y el almacén**, que asoma por encima de la cubierta con el
+rótulo CUC en la cara que mira al aparcamiento (`roofTower` en `scene/building.js`).
+
 El solar está en ladera. El edificio y su explanada de acceso están abajo, a `y = -0.9`; el
-**aparcamiento queda detrás y a la cota de la cubierta** (`PARK_Y = 7.6`), con la torre de
-escaleras y ascensor rotulada CUC. Entre ambos hay un talud, y por el **flanco derecho** sube
+**aparcamiento queda detrás y a la cota de la cubierta** (`PARK_Y = 7.6`), de modo que desde
+allí la torre se lee como un volumen suelto. Entre ambos hay un talud, y por el **flanco este** sube
 la escalera que salva los 8,5 m de desnivel en cuatro tramos con rellanos, encajada entre
 parapetos macizos de hormigón. La piscina y la pista quedan al este, a la cota baja.
 

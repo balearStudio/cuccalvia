@@ -230,18 +230,18 @@ export function createEnvironment() {
   });
 
   const lot = new THREE.Mesh(new THREE.BoxGeometry(52, 0.3, 22), asphaltMat);
-  lot.position.set(2, PARK_Y - 0.15, -37);
+  lot.position.set(2, PARK_Y - 0.15, -33);
   lot.receiveShadow = true;
   group.add(lot);
 
   // Talud entre el edificio y el aparcamiento, con su muro de coronación
   const bankRise = PARK_Y - 0.3 - GROUND_Y;
-  const bankRun = 8.5;
+  const bankRun = 6.5;
   const bank = new THREE.Mesh(
     new THREE.BoxGeometry(62, 0.8, Math.hypot(bankRun, bankRise)),
     new THREE.MeshStandardMaterial({ map: t.grass, color: 0x8f9a68, roughness: 1 })
   );
-  bank.position.set(2, (GROUND_Y + PARK_Y - 0.3) / 2, -18 - bankRun / 2);
+  bank.position.set(2, (GROUND_Y + PARK_Y - 0.3) / 2, -16 - bankRun / 2);
   bank.rotation.x = Math.atan2(bankRise, bankRun); // el lado de atrás sube
   bank.receiveShadow = true;
   group.add(bank);
@@ -250,50 +250,27 @@ export function createEnvironment() {
     new THREE.BoxGeometry(62, PARK_Y - GROUND_Y, 30),
     new THREE.MeshStandardMaterial({ map: t.grass, color: 0x8a9463, roughness: 1 })
   );
-  fillBox.position.set(2, (GROUND_Y + PARK_Y) / 2 - 0.2, -41);
+  fillBox.position.set(2, (GROUND_Y + PARK_Y) / 2 - 0.2, -37);
   fillBox.receiveShadow = true;
   group.add(fillBox);
 
   const retaining = [];
-  retaining.push(new THREE.BoxGeometry(52, 1.1, 0.6).translate(2, PARK_Y + 0.25, -26.2));
+  retaining.push(new THREE.BoxGeometry(52, 1.1, 0.6).translate(2, PARK_Y + 0.25, -22.2));
   for (const sx of [-1, 1]) {
-    retaining.push(new THREE.BoxGeometry(0.6, 1.1, 22).translate(2 + sx * 26, PARK_Y + 0.25, -37));
+    retaining.push(new THREE.BoxGeometry(0.6, 1.1, 22).translate(2 + sx * 26, PARK_Y + 0.25, -33));
   }
   const retainingMesh = new THREE.Mesh(mergeGeometries(retaining), stoneMat);
   retainingMesh.castShadow = true;
   retainingMesh.receiveShadow = true;
   group.add(retainingMesh);
 
-  // Torre de escaleras y ascensor, con el rótulo CUC
-  const towerMat = new THREE.MeshStandardMaterial({ map: t.plaza, color: 0xd8c1ae, roughness: 0.94 });
-  const tower = new THREE.Mesh(new THREE.BoxGeometry(4.4, 6.4, 4.0), towerMat);
-  tower.position.set(-14, PARK_Y + 3.2, -29.5);
-  tower.castShadow = true;
-  tower.receiveShadow = true;
-  group.add(tower);
-  const towerCap = new THREE.Mesh(new THREE.BoxGeometry(4.7, 0.22, 4.3), towerMat);
-  towerCap.position.set(-14, PARK_Y + 6.5, -29.5);
-  towerCap.castShadow = true;
-  group.add(towerCap);
-  const mastMat = new THREE.MeshStandardMaterial({ color: 0x5b6063, metalness: 0.6, roughness: 0.5 });
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.2, 6), mastMat);
-  mast.position.set(-12.9, PARK_Y + 8.2, -29.5);
-  group.add(mast);
-  const cucMat = new THREE.MeshStandardMaterial({ color: 0xf1efe8, roughness: 0.8 });
-  const cucLetters = [];
-  let cx0 = -15.1;
-  for (const ch of ['C', 'U', 'C']) {
-    cucLetters.push(new THREE.BoxGeometry(0.62, 0.72, 0.06).translate(cx0, PARK_Y + 4.3, -27.53));
-    if (ch === 'U') cucLetters.push(new THREE.BoxGeometry(0.4, 0.2, 0.07).translate(cx0, PARK_Y + 4.6, -27.54));
-    cx0 += 0.86;
-  }
-  group.add(new THREE.Mesh(mergeGeometries(cucLetters), cucMat));
+  // (La torre del ascensor va sobre la cubierta del edificio: scene/building.js)
 
   // Marcas de las plazas
   const marks = [];
   for (let i = 0; i < 14; i++) {
     const g = new THREE.BoxGeometry(0.12, 0.02, 4.6);
-    g.translate(-18 + i * 2.5, PARK_Y + 0.01, -33);
+    g.translate(-18 + i * 2.5, PARK_Y + 0.01, -29);
     marks.push(g);
   }
   group.add(
@@ -307,7 +284,7 @@ export function createEnvironment() {
   const bodyBuckets = bodyColors.map(() => []);
   for (let i = 0; i < 9; i++) {
     const x = -16.8 + i * 2.5 + rand() * 0.3;
-    const c = carGeometries(rand, x, -33.1 + rand() * 0.4, Math.PI * (rand() > 0.5 ? 1 : 0));
+    const c = carGeometries(rand, x, -29.1 + rand() * 0.4, Math.PI * (rand() > 0.5 ? 1 : 0));
     for (const list of [c.body, c.glass, c.tyre]) list.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
     bodyBuckets[Math.floor(rand() * bodyColors.length)].push(...c.body);
     carGlass.push(...c.glass);
@@ -531,13 +508,13 @@ export function createEnvironment() {
   const busy = (x, z) =>
     (z > 2 && x > -26 && x < 30) || // frente del edificio y explanada
     (x > -14 && x < 14 && z > -27 && z < 2) || // el propio edificio
-    (z > -28 && z < -16 && x > -32 && x < 32) || // talud
-    (x > -27 && x < 31 && z > -50 && z < -25) || // aparcamiento y torre
+    (z > -24 && z < -14 && x > -32 && x < 32) || // talud
+    (x > -27 && x < 31 && z > -46 && z < -21) || // aparcamiento
     (x > 12 && x < 21 && z > -30 && z < 8) || // escalera del flanco derecho
     (x > 25 && x < 52 && z > -46 && z < 14); // pista de pádel y piscina
 
   // Detrás del talud el terreno está a la cota del aparcamiento
-  const groundAt = (z) => (z < -27 ? PARK_Y : GROUND_Y);
+  const groundAt = (z) => (z < -23 ? PARK_Y : GROUND_Y);
   for (let i = 0; i < 700 && spots.length < 96; i++) {
     const a = rand() * Math.PI * 2;
     const r = 26 + rand() * 56;

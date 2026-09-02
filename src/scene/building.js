@@ -547,6 +547,71 @@ function roofRail(m, xFrom, xTo) {
 }
 
 /**
+ * Torre del ascensor y el almacén: la tercera planta, que asoma por encima de
+ * la cubierta. Desde el aparcamiento —que está a la cota del techo— se lee como
+ * un volumen suelto con el rótulo CUC; desde la carretera de atrás, como el
+ * cuerpo que sobresale del edificio.
+ */
+function roofTower(m) {
+  const g = new THREE.Group();
+  const w = 4.2;
+  const d = 4.0;
+  const x = 1.5;
+  const z = -12.4;
+  const h = 4.0;
+  const base = roofSoffitY(x, z) + ROOF.thickness;
+
+  g.add(box(w, h, d, m.stucco, [x, base + h / 2, z]));
+  // Coronación con un pequeño vuelo
+  g.add(box(w + 0.3, 0.24, d + 0.3, m.edge, [x, base + h + 0.12, z]));
+
+  // Ventana cuadrada del hueco de escalera
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.66), m.darkGlass);
+  win.position.set(x - w / 2 - 0.01, base + 2.3, z + 0.4);
+  win.rotation.y = -Math.PI / 2;
+  g.add(win);
+  g.add(box(0.08, 0.78, 0.78, m.mullion, [x - w / 2 + 0.02, base + 2.3, z + 0.4], false));
+
+  // Rejilla de ventilación del cuarto de máquinas
+  g.add(box(0.06, 0.42, 0.62, m.mullion, [x - w / 2 - 0.02, base + 1.05, z - 0.5], false));
+
+  // Proyector y antena, como en la foto desde la carretera de atrás
+  const metal = new THREE.MeshStandardMaterial({ color: 0x74777a, metalness: 0.6, roughness: 0.45 });
+  const flood = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.16), metal);
+  flood.position.set(x - w / 2 - 0.12, base + 3.1, z + 1.2);
+  flood.rotation.z = 0.3;
+  g.add(flood);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.2, 6), metal);
+  mast.position.set(x + 1.5, base + h + 1.7, z - 1.2);
+  g.add(mast);
+  const aerial = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.06), metal);
+  aerial.position.set(x + 1.5, base + h + 3.0, z - 1.2);
+  g.add(aerial);
+
+  // Rótulo CUC en la cara norte, la que mira al aparcamiento
+  const letters = [];
+  let lx = x - 1.0;
+  for (const ch of ['C', 'U', 'C']) {
+    letters.push(new THREE.BoxGeometry(0.6, 0.7, 0.06).translate(lx, base + 2.5, z - d / 2 - 0.03));
+    if (ch === 'U') letters.push(new THREE.BoxGeometry(0.38, 0.2, 0.07).translate(lx, base + 2.78, z - d / 2 - 0.04));
+    lx += 0.84;
+  }
+  const cuc = new THREE.Mesh(mergeGeometries(letters), new THREE.MeshStandardMaterial({
+    color: 0xf1efe8, roughness: 0.8
+  }));
+  g.add(cuc);
+
+  g.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
+  return g;
+}
+
+
+/**
  * Pórtico. Las columnas son gruesas y ligeramente troncocónicas —más anchas
  * abajo—, tal como se ven en el vídeo del acceso.
  */
@@ -671,6 +736,6 @@ export function createBuilding() {
   const m = makeMaterials();
   const group = new THREE.Group();
   group.name = 'edificio';
-  group.add(plinth(m), shell(m), curtainWall(m), roof(m), columns(m), approach(m));
+  group.add(plinth(m), shell(m), curtainWall(m), roof(m), roofTower(m), columns(m), approach(m));
   return { group, materials: m, plan: PLAN };
 }
