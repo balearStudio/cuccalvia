@@ -21,51 +21,68 @@ import { doorStrip, wallLettering, chalkboard, noticeboard, ROOM_COLORS } from '
  * Cambiar ROOMS es cambiar dónde va cada una.
  */
 
-const L = -12 + 0.32; // cara interior del muro izquierdo
+const L = -12 + 0.32; // cara interior del muro oeste
 const R = 12 - 0.32;
-const BACK = -15 + 0.32;
+const BACK = -22.4 + 0.32;
 const FRONT = -0.06;
 const SLAB_Y = 4.2; // cara superior del forjado
 const SLAB_T = 0.34;
-const VOID_Z = -6.4; // el vestíbulo es de doble altura desde aquí a la fachada
-const CORRIDOR_Z = -8.0; // cara del pasillo donde dan las puertas
 const CEIL_Y = SLAB_Y + 2.72;
 const DOOR_W = 0.95;
 const DOOR_H = 2.1;
 
-/** Reparto provisional de la planta primera (z de BACK a CORRIDOR_Z). */
+/**
+ * El vacío: en el croquis de la planta primera toda la mitad este aparece como
+ * «abierto», o sea la doble altura sobre la sala de lectura. El forjado ocupa
+ * la banda oeste y el entorno del núcleo de comunicaciones.
+ */
+const VOID = { x0: -2.2, x1: R, z0: -12.4, z1: FRONT };
+
+/** Núcleo de ascensor y escalera: el bloque de tres plantas del catastro. */
+const CORE = { x0: -1.6, x1: 4.6, z0: -17.7, z1: -12.4 };
+
+/**
+ * Reparto de la planta primera, calcado del croquis: las salas se agrupan al
+ * oeste y al norte, alrededor del vacío. `door` dice en qué paramento está la
+ * puerta y a qué distancia del extremo, que es donde va la tira de señalética.
+ */
 const ROOMS = [
   {
     id: 'sala1',
-    x0: L, x1: -4.6,
+    x0: -7.3, x1: -2.4, z0: -12.0, z1: FRONT,
+    door: { side: 'east', at: -10.6 },
     title: "sala §\nd'estudi", number: '1', color: ROOM_COLORS.estudi, icon: 'estudi',
+    kind: 'study', carrels: true
+  },
+  {
+    id: 'sala2',
+    x0: L, x1: -7.3, z0: -13.1, z1: FRONT,
+    door: { side: 'north', at: -8.4 },
+    title: "sala §\nd'estudi", number: '2', color: ROOM_COLORS.estudi, icon: 'estudi',
     kind: 'study', carrels: true,
     dado: '#8d8b6e'
   },
   {
-    id: 'sala2',
-    x0: -4.6, x1: 0.6,
-    title: "sala §\nd'estudi", number: '2', color: ROOM_COLORS.estudi, icon: 'estudi',
-    kind: 'tables',
-    stripe: '#e8c81e' // la franja amarilla de la sala del mural
-  },
-  {
     id: 'sala3',
-    x0: 0.6, x1: 5.2,
+    x0: L, x1: -8.4, z0: BACK, z1: -13.1,
+    door: { side: 'east', at: -15.4 },
     title: "sala §\nd'estudi", number: '3', color: ROOM_COLORS.informatica, icon: 'informatica',
-    kind: 'study', carrels: true
-  },
-  {
-    id: 'grup',
-    x0: 5.2, x1: 8.4,
-    title: 'treball\nen grup', color: ROOM_COLORS.grup, icon: 'grup',
-    kind: 'group'
+    kind: 'tables'
   },
   {
     id: 'oficina',
-    x0: 8.4, x1: R,
+    x0: -8.4, x1: -1.7, z0: BACK, z1: -18.0,
+    door: { side: 'south', at: -5.2 },
     title: 'oficina', color: ROOM_COLORS.oficina, icon: 'oficina',
     kind: 'office'
+  },
+  {
+    id: 'grupal',
+    x0: -6.4, x1: -1.7, z0: -17.8, z1: -15.2,
+    door: { side: 'south', at: -4.0 },
+    title: 'treball\nen grup', color: ROOM_COLORS.grup, icon: 'grup',
+    kind: 'group',
+    stripe: '#e8c81e'
   }
 ];
 
@@ -264,37 +281,54 @@ export function createInterior() {
   ground.receiveShadow = true;
   group.add(ground);
 
+  // El forjado ocupa la banda oeste y el entorno del núcleo; el resto es vacío
   const slabs = [
-    box(R - L, SLAB_T, VOID_Z - BACK, (L + R) / 2, SLAB_Y - SLAB_T / 2, (BACK + VOID_Z) / 2),
-    box(R - L, SLAB_T, 1.7, (L + R) / 2, SLAB_Y - SLAB_T / 2, VOID_Z + 2.6),
-    box(2.8, SLAB_T, 3.2, L + 1.4, SLAB_Y - SLAB_T / 2, VOID_Z + 1.6)
+    box(VOID.x0 - L, SLAB_T, FRONT - BACK, (L + VOID.x0) / 2, SLAB_Y - SLAB_T / 2, (BACK + FRONT) / 2),
+    box(CORE.x1 + 1.2 - VOID.x0, SLAB_T, VOID.z0 - BACK, (VOID.x0 + CORE.x1 + 1.2) / 2, SLAB_Y - SLAB_T / 2, (BACK + VOID.z0) / 2)
   ];
   group.add(mesh(slabs, slabMat));
 
   const upperMat = terrazzo.clone();
-  upperMat.map = tiled(t.terrazzo, R - L, VOID_Z - BACK, 1.2);
-  const upperFloor = new THREE.Mesh(new THREE.PlaneGeometry(R - L, VOID_Z - BACK), upperMat);
-  upperFloor.rotation.x = -Math.PI / 2;
-  upperFloor.position.set((L + R) / 2, SLAB_Y + 0.02, (BACK + VOID_Z) / 2);
-  upperFloor.receiveShadow = true;
-  group.add(upperFloor);
+  upperMat.map = tiled(t.terrazzo, VOID.x0 - L, FRONT - BACK, 1.2);
+  const upperWest = new THREE.Mesh(new THREE.PlaneGeometry(VOID.x0 - L, FRONT - BACK), upperMat);
+  upperWest.rotation.x = -Math.PI / 2;
+  upperWest.position.set((L + VOID.x0) / 2, SLAB_Y + 0.02, (BACK + FRONT) / 2);
+  upperWest.receiveShadow = true;
+  group.add(upperWest);
 
-  ceilingMat.map = tiled(t.ceiling, R - L, VOID_Z - BACK, 1.2);
-  const dropped = new THREE.Mesh(new THREE.PlaneGeometry(R - L, VOID_Z - BACK), ceilingMat);
-  dropped.rotation.x = Math.PI / 2;
-  dropped.position.set((L + R) / 2, CEIL_Y, (BACK + VOID_Z) / 2);
-  group.add(dropped);
+  const upperNorth = new THREE.Mesh(
+    new THREE.PlaneGeometry(CORE.x1 + 1.2 - VOID.x0, VOID.z0 - BACK),
+    upperMat
+  );
+  upperNorth.rotation.x = -Math.PI / 2;
+  upperNorth.position.set((VOID.x0 + CORE.x1 + 1.2) / 2, SLAB_Y + 0.02, (BACK + VOID.z0) / 2);
+  upperNorth.receiveShadow = true;
+  group.add(upperNorth);
 
-  // Sobre el vestíbulo la cubierta queda vista
-  const ceilGeo = new THREE.PlaneGeometry(R - L, VOID_Z - FRONT + 2.6, 1, 1);
+  // Falso techo sobre la parte construida de la planta alta
+  ceilingMat.map = tiled(t.ceiling, VOID.x0 - L, FRONT - BACK, 1.2);
+  const droppedWest = new THREE.Mesh(new THREE.PlaneGeometry(VOID.x0 - L, FRONT - BACK), ceilingMat);
+  droppedWest.rotation.x = Math.PI / 2;
+  droppedWest.position.set((L + VOID.x0) / 2, CEIL_Y, (BACK + FRONT) / 2);
+  group.add(droppedWest);
+  const droppedNorth = new THREE.Mesh(
+    new THREE.PlaneGeometry(CORE.x1 + 1.2 - VOID.x0, VOID.z0 - BACK),
+    ceilingMat
+  );
+  droppedNorth.rotation.x = Math.PI / 2;
+  droppedNorth.position.set((VOID.x0 + CORE.x1 + 1.2) / 2, CEIL_Y, (BACK + VOID.z0) / 2);
+  group.add(droppedNorth);
+
+  // Sobre el vacío la cubierta queda vista
+  const ceilGeo = new THREE.PlaneGeometry(VOID.x1 - VOID.x0, VOID.z1 - VOID.z0, 1, 1);
   ceilGeo.rotateX(Math.PI / 2);
   ceilGeo.applyMatrix4(
     new THREE.Matrix4().set(1, 0, 0, 0, ROOF.slopeX, 1, ROOF.slopeZ, 0, 0, 0, 1, 0, 0, 0, 0, 1)
   );
   ceilGeo.computeVertexNormals();
   const voidCeiling = new THREE.Mesh(ceilGeo, wallMat);
-  const vx = (L + R) / 2;
-  const vz = (VOID_Z + FRONT) / 2 - 0.3;
+  const vx = (VOID.x0 + VOID.x1) / 2;
+  const vz = (VOID.z0 + VOID.z1) / 2;
   voidCeiling.position.set(vx, roofSoffitY(vx, vz) - 0.3, vz);
   group.add(voidCeiling);
 
@@ -306,9 +340,9 @@ export function createInterior() {
     skirting.push(box(w, 0.1, d, (x0 + x1) / 2, y + 0.05, (z0 + z1) / 2));
   };
   for (const y of [0.02, SLAB_Y + 0.02]) {
-    addSkirting(L, BACK, R, BACK, y);
-    addSkirting(L, BACK, L, y === 0.02 ? FRONT : VOID_Z, y);
-    addSkirting(R, BACK, R, y === 0.02 ? FRONT : VOID_Z, y);
+    addSkirting(L, BACK, -1.6, BACK, y);
+    addSkirting(L, BACK, L, FRONT, y);
+    if (y === 0.02) addSkirting(R, VOID.z0, R, FRONT, y);
   }
 
   /* ================================================================ */
@@ -330,49 +364,76 @@ export function createInterior() {
   const strips = [];
 
   for (const room of ROOMS) {
-    const cx = (room.x0 + room.x1) / 2;
-    const doorX = cx;
+    // Cada paramento de la sala, con el lado al que da
+    const sides = {
+      south: [room.x0, room.z1, room.x1, room.z1],
+      north: [room.x0, room.z0, room.x1, room.z0],
+      west: [room.x0, room.z0, room.x0, room.z1],
+      east: [room.x1, room.z0, room.x1, room.z1]
+    };
 
-    // Tabique entre salas
-    addWall(room.x1, BACK, room.x1, CORRIDOR_Z);
+    for (const [name, [x0, z0, x1, z1]] of Object.entries(sides)) {
+      // La fachada la levanta building.js; aquí solo la tabiquería interior
+      if (name === 'south' && Math.abs(z1 - FRONT) < 0.2) continue;
+      if (name === 'west' && Math.abs(x0 - L) < 0.2) continue;
+      if (name === 'north' && Math.abs(z0 - BACK) < 0.2) continue;
 
-    // Muro del pasillo, con el hueco de la puerta
-    const leftSpan = doorX - DOOR_W / 2 - room.x0;
-    const rightSpan = room.x1 - (doorX + DOOR_W / 2);
-    if (leftSpan > 0.02) addWall(room.x0, CORRIDOR_Z, room.x0 + leftSpan, CORRIDOR_Z);
-    if (rightSpan > 0.02) addWall(room.x1 - rightSpan, CORRIDOR_Z, room.x1, CORRIDOR_Z);
-    // Dintel sobre la puerta
-    partitions.push(box(DOOR_W + 0.1, H - DOOR_H, 0.13, doorX, SLAB_Y + DOOR_H + (H - DOOR_H) / 2, CORRIDOR_Z));
+      if (room.door.side === name) {
+        // El muro se parte para dejar el hueco de la puerta
+        const along = name === 'north' || name === 'south' ? 'x' : 'z';
+        const at = room.door.at;
+        if (along === 'x') {
+          addWall(x0, z0, at - DOOR_W / 2, z1);
+          addWall(at + DOOR_W / 2, z0, x1, z1);
+          partitions.push(box(DOOR_W + 0.1, H - DOOR_H, 0.13, at, SLAB_Y + DOOR_H + (H - DOOR_H) / 2, z0));
+        } else {
+          addWall(x0, z0, x1, at - DOOR_W / 2);
+          addWall(x0, at + DOOR_W / 2, x1, z1);
+          partitions.push(box(0.13, H - DOOR_H, DOOR_W + 0.1, x0, SLAB_Y + DOOR_H + (H - DOOR_H) / 2, at));
+        }
+      } else {
+        addWall(x0, z0, x1, z1);
+      }
+    }
 
-    // Hoja de la puerta con su ventanuco
+    // Hoja de la puerta, su ventanuco y la tira de señalética en la jamba
+    const horizontal = room.door.side === 'north' || room.door.side === 'south';
+    const [dx, dz] = horizontal
+      ? [room.door.at, room.door.side === 'north' ? room.z0 : room.z1]
+      : [room.door.side === 'west' ? room.x0 : room.x1, room.door.at];
+    // Hacia fuera de la sala
+    const out = horizontal
+      ? [0, room.door.side === 'north' ? -1 : 1]
+      : [room.door.side === 'west' ? -1 : 1, 0];
+    const rot = horizontal ? 0 : Math.PI / 2;
+
     const leaf = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W - 0.04, DOOR_H - 0.03, 0.045), doorMat);
-    leaf.position.set(doorX, SLAB_Y + (DOOR_H - 0.03) / 2, CORRIDOR_Z + 0.02);
+    leaf.position.set(dx + out[0] * 0.02, SLAB_Y + (DOOR_H - 0.03) / 2, dz + out[1] * 0.02);
+    leaf.rotation.y = rot;
     leaf.castShadow = true;
-    const port = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.42), glassPane);
-    port.position.set(doorX, SLAB_Y + 1.62, CORRIDOR_Z + 0.05);
     const portFrame = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.52, 0.06), doorMat);
-    portFrame.position.set(doorX, SLAB_Y + 1.62, CORRIDOR_Z + 0.02);
+    portFrame.position.set(dx + out[0] * 0.02, SLAB_Y + 1.62, dz + out[1] * 0.02);
+    portFrame.rotation.y = rot;
+    const port = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.42), glassPane);
+    port.position.set(dx + out[0] * 0.05, SLAB_Y + 1.62, dz + out[1] * 0.05);
+    port.rotation.y = rot;
     doors.add(leaf, portFrame, port);
 
-    // Tira de señalética en la jamba, en el lado del pasillo
     const strip = doorStrip({
       title: room.title,
       number: room.number ?? '',
       color: room.color,
       iconKind: room.icon,
-      seed: room.id.length * 7 + room.x0
+      seed: room.id.length * 7 + Math.round(room.x0 * 3)
     });
-    strips.push(
-      panel(strip, 0.24, 1.9, doorX + DOOR_W / 2 + 0.16, SLAB_Y + 1.15, CORRIDOR_Z + 0.075)
-    );
+    const sx = horizontal ? dx + DOOR_W / 2 + 0.16 : dx + out[0] * 0.075;
+    const sz = horizontal ? dz + out[1] * 0.075 : dz + DOOR_W / 2 + 0.16;
+    const stripPanel = panel(strip, 0.24, 1.9, sx, SLAB_Y + 1.15, sz);
+    stripPanel.rotation.y = rot;
+    strips.push(stripPanel);
 
-    // Zócalo o franja de color de la sala
-    const bandTargets = [
-      [room.x0, BACK, room.x1, BACK],
-      [room.x0, CORRIDOR_Z, room.x1, CORRIDOR_Z],
-      [room.x0, BACK, room.x0, CORRIDOR_Z],
-      [room.x1, BACK, room.x1, CORRIDOR_Z]
-    ];
+    // Zócalo o franja de color, y rodapié
+    const bandTargets = Object.values(sides);
     if (room.dado) {
       const geos = dados.get(room.dado) || [];
       for (const [x0, z0, x1, z1] of bandTargets) {
@@ -391,13 +452,18 @@ export function createInterior() {
       }
       stripes.set(room.stripe, geos);
     }
-
-    // Rodapié perimetral de la sala
     for (const [x0, z0, x1, z1] of bandTargets) addSkirting(x0, z0, x1, z1, SLAB_Y + 0.02);
   }
 
-  // Muro del pasillo que da al vestíbulo
-  addWall(L, VOID_Z, R, VOID_Z, 0.16);
+  // Núcleo de ascensor y escalera
+  for (const [x0, z0, x1, z1] of [
+    [CORE.x0, CORE.z0, CORE.x1, CORE.z0],
+    [CORE.x0, CORE.z1, CORE.x1, CORE.z1],
+    [CORE.x1, CORE.z0, CORE.x1, CORE.z1]
+  ]) {
+    addWall(x0, z0, x1, z1);
+  }
+
   group.add(mesh(partitions, wallMat));
   group.add(doors);
   strips.forEach((s) => group.add(s));
@@ -405,7 +471,7 @@ export function createInterior() {
   for (const [color, geos] of stripes) group.add(mesh(geos, new THREE.MeshStandardMaterial({ color, roughness: 0.85 }), false));
 
   // Pizarra del pasillo con el nombre del centro
-  group.add(panel(chalkboard(), 3.2, 2.0, (L + 2.4), SLAB_Y + 1.45, VOID_Z - 0.09, Math.PI));
+  group.add(panel(chalkboard(), 3.0, 1.9, (CORE.x0 + CORE.x1) / 2, SLAB_Y + 1.45, CORE.z1 + 0.09, 0));
 
   /* ---------------- Mobiliario de las salas ---------------- */
   const allTops = [];
@@ -416,9 +482,9 @@ export function createInterior() {
 
   for (const room of ROOMS) {
     const cx = (room.x0 + room.x1) / 2;
-    const cz = (BACK + CORRIDOR_Z) / 2;
+    const cz = (room.z0 + room.z1) / 2;
     const width = room.x1 - room.x0;
-    const depth = CORRIDOR_Z - BACK;
+    const depth = room.z1 - room.z0;
 
     const tops = [];
     const legs = [];
@@ -436,7 +502,7 @@ export function createInterior() {
       const rows = Math.max(1, Math.floor((depth - 2.4) / 3.0));
       const runLength = Math.min(width - 2.6, 5.6);
       for (let r = 0; r < rows; r++) {
-        const z = BACK + 2.2 + r * 3.0;
+        const z = room.z0 + 2.2 + r * 3.0;
         const d = deskGeometries(cx, z, runLength, 0.8);
         tops.push(...d.top);
         legs.push(...d.legs);
@@ -449,10 +515,10 @@ export function createInterior() {
       }
       if (room.carrels) {
         for (let x = room.x0 + 1.3; x < room.x1 - 1.3; x += 1.5) {
-          const c = carrelGeometries(x, BACK + 0.62, 0);
+          const c = carrelGeometries(x, room.z0 + 0.62, 0);
           tops.push(...c.top);
           legs.push(...c.legs);
-          addChair(x, BACK + 1.42, Math.PI);
+          addChair(x, room.z0 + 1.42, Math.PI);
         }
       }
     }
@@ -469,10 +535,10 @@ export function createInterior() {
         }
       }
       for (let x = room.x0 + 1.2; x < room.x1 - 1.2; x += 1.5) {
-        const c = carrelGeometries(x, CORRIDOR_Z - 0.75, Math.PI);
+        const c = carrelGeometries(x, room.z1 - 0.75, Math.PI);
         tops.push(...c.top);
         legs.push(...c.legs);
-        addChair(x, CORRIDOR_Z - 1.55, 0);
+        addChair(x, room.z1 - 1.55, 0);
       }
     }
 
@@ -488,7 +554,7 @@ export function createInterior() {
         material: { color: 0x2f4a3a, map: null }
       });
       group.add(board);
-      group.add(mesh([box(1.84, 1.14, 0.05, cx, SLAB_Y + 1.55, BACK + 0.06)], beech, false));
+      group.add(mesh([box(1.84, 1.14, 0.05, cx, SLAB_Y + 1.55, room.z0 + 0.06)], beech, false));
     }
 
     if (room.kind === 'office') {
@@ -496,10 +562,10 @@ export function createInterior() {
       tops.push(...d.top);
       legs.push(...d.legs);
       addChair(cx, cz - 0.15, 0);
-      group.add(mesh([box(Math.min(width - 1.0, 1.8), 1.1, 0.42, cx, SLAB_Y + 0.55, BACK + 0.32)], beech));
+      group.add(mesh([box(Math.min(width - 1.0, 1.8), 1.1, 0.42, cx, SLAB_Y + 0.55, room.z0 + 0.32)], beech));
       // Pizarra blanca
       group.add(
-        panel(wallLettering('', { width: 8, height: 8 }), 1.8, 1.1, cx, SLAB_Y + 1.6, BACK + 0.09, 0, {
+        panel(wallLettering('', { width: 8, height: 8 }), 1.8, 1.1, cx, SLAB_Y + 1.6, room.z0 + 0.09, 0, {
           material: { color: 0xf7f7f4, map: null }
         })
       );
@@ -522,8 +588,9 @@ export function createInterior() {
   // Luminarias empotradas de rejilla
   const panels = [];
   const grilles = [];
-  for (let x = L + 1.9; x < R - 1; x += 3.4) {
-    for (let z = BACK + 1.9; z < VOID_Z - 0.6; z += 3.0) {
+  for (let x = L + 1.9; x < CORE.x1; x += 3.4) {
+    for (let z = BACK + 1.9; z < FRONT - 1.5; z += 3.0) {
+      if (x > VOID.x0 && z > VOID.z0) continue; // aquí está el vacío
       panels.push(box(1.18, 0.02, 0.58, x, CEIL_Y - 0.03, z));
       grilles.push(box(1.26, 0.05, 0.04, x, CEIL_Y - 0.025, z - 0.31));
       grilles.push(box(1.26, 0.05, 0.04, x, CEIL_Y - 0.025, z + 0.31));
@@ -544,8 +611,8 @@ export function createInterior() {
     box(0.18, 0.34, 0.82, -0.96, 0.62, 0),
     box(0.18, 0.34, 0.82, 0.96, 0.62, 0)
   ], sofaMat));
-  sofa.position.set(R - 1.6, SLAB_Y, VOID_Z - 1.4);
-  sofa.rotation.y = -Math.PI / 2;
+  sofa.position.set(CORE.x1 - 1.4, SLAB_Y, CORE.z1 + 1.3);
+  sofa.rotation.y = Math.PI;
   group.add(sofa);
 
   // Cubos-taburete pintados con la gráfica del centro
@@ -555,14 +622,14 @@ export function createInterior() {
       new THREE.BoxGeometry(0.44, 0.44, 0.44),
       new THREE.MeshStandardMaterial({ color: cubeColors[i % cubeColors.length], roughness: 0.7 })
     );
-    c.position.set(R - 3.1, SLAB_Y + 0.22 + i * 0.45, VOID_Z - 0.75);
+    c.position.set(CORE.x0 + 0.8, SLAB_Y + 0.22 + i * 0.45, CORE.z1 + 0.9);
     c.rotation.y = rand() * 0.4;
     c.castShadow = true;
     group.add(c);
   }
 
   // Estrellas de papel colgadas
-  for (const [x, z] of [[R - 2.2, VOID_Z - 2.6], [L + 3.2, VOID_Z - 1.2]]) {
+  for (const [x, z] of [[CORE.x1 - 2.4, CORE.z1 + 1.6], [L + 3.2, -14.5]]) {
     const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 1), new THREE.MeshStandardMaterial({
       color: 0xfbfaf6, roughness: 0.9, flatShading: true
     }));
@@ -577,7 +644,7 @@ export function createInterior() {
 
   // Columnas redondas contra el muro cortina
   const columns = [];
-  for (const x of [-8.4, -2.6, 3.2, 9.0]) {
+  for (const x of [-1.0, 2.6, 6.2, 9.8]) {
     const h = roofSoffitY(x, -1.1) - 0.3;
     const col = new THREE.CylinderGeometry(0.24, 0.24, h, 20);
     col.translate(x, h / 2, -1.1);
@@ -588,8 +655,8 @@ export function createInterior() {
   // Escalera y barandilla de acero con cruces de San Andrés
   const stairs = [];
   const steps = 16;
-  for (let i = 0; i < steps; i++) stairs.push(box(1.9, 0.26, 0.3, L + 2.2, 0.13 + i * 0.26, -3.2 - i * 0.3));
-  stairs.push(box(2.3, 0.2, 1.8, L + 2.2, SLAB_Y - 0.1, -3.2 - steps * 0.3 - 0.9));
+  for (let i = 0; i < steps; i++) stairs.push(box(1.9, 0.26, 0.3, CORE.x0 + 1.2, 0.13 + i * 0.26, CORE.z1 - 0.4 - i * 0.3));
+  stairs.push(box(2.3, 0.2, 1.8, CORE.x0 + 1.2, SLAB_Y - 0.1, CORE.z1 - 0.4 - steps * 0.3 - 0.9));
   group.add(mesh(stairs, whiteConcrete));
 
   const rails = [];
@@ -621,23 +688,23 @@ export function createInterior() {
     place(local, cx, cz, -ang, y);
     rails.push(...local);
   };
-  addSteelRail(L + 0.2, VOID_Z + 0.1, R - 0.2, VOID_Z + 0.1, SLAB_Y);
-  addSteelRail(L + 3.6, -3.4, L + 3.6, -7.6, SLAB_Y);
+  addSteelRail(VOID.x0 + 0.05, VOID.z0 + 0.05, CORE.x1 + 1.1, VOID.z0 + 0.05, SLAB_Y);
+  addSteelRail(VOID.x0 + 0.05, VOID.z0 + 0.05, VOID.x0 + 0.05, FRONT - 0.4, SLAB_Y);
   group.add(mesh(rails, steel));
 
   // Antepecho blanco de la balconada sobre el vestíbulo
-  group.add(mesh([box(R - L, 0.55, 0.3, (L + R) / 2, SLAB_Y + 0.28, VOID_Z + 2.6 - 0.9)], whiteConcrete));
+  group.add(mesh([box(CORE.x1 + 1.1 - VOID.x0, 0.55, 0.3, (VOID.x0 + CORE.x1 + 1.1) / 2, SLAB_Y + 0.28, VOID.z0 + 0.18)], whiteConcrete));
 
   // Letras CALVIÀ sobre el antepecho
   const letterMat = whiteConcrete;
   const letters = [];
   const letterAt = (cx) => cx;
-  let lx = 3.0;
+  let lx = -1.0;
   for (const ch of ['C', 'A', 'L', 'V', 'I', 'À']) {
     const w = ch === 'I' ? 0.16 : 0.42;
-    letters.push(box(w, 0.5, 0.22, letterAt(lx), SLAB_Y + 0.82, VOID_Z + 1.75));
+    letters.push(box(w, 0.5, 0.22, letterAt(lx), SLAB_Y + 0.82, VOID.z0 + 0.18));
     if (ch !== 'I') {
-      letters.push(box(w * 0.55, 0.16, 0.22, letterAt(lx) + w * 0.3, SLAB_Y + 0.82, VOID_Z + 1.75));
+      letters.push(box(w * 0.55, 0.16, 0.22, letterAt(lx) + w * 0.3, SLAB_Y + 0.82, VOID.z0 + 0.18));
     }
     lx += w + 0.16;
   }
@@ -646,10 +713,10 @@ export function createInterior() {
   // Mostrador curvo de recepción
   const desk = new THREE.Group();
   const counter = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.75, 1.05, 28, 1, true, Math.PI * 0.15, Math.PI * 0.95), beech);
-  counter.position.set(8.6, 0.525, -3.0);
+  counter.position.set(8.2, 0.525, -3.4);
   counter.castShadow = true;
   const counterTop = new THREE.Mesh(new THREE.CylinderGeometry(1.92, 1.92, 0.07, 28, 1, false, Math.PI * 0.15, Math.PI * 0.95), beech);
-  counterTop.position.set(8.6, 1.08, -3.0);
+  counterTop.position.set(8.2, 1.08, -3.4);
   desk.add(counter, counterTop);
   group.add(desk);
 
@@ -659,7 +726,7 @@ export function createInterior() {
   const bookBuckets = [[], [], [], [], [], []];
 
   // Módulos altos en batería, perpendiculares al vidrio
-  for (let z = -4.4; z >= -10.6; z -= 2.1) {
+  for (let z = -4.4; z >= -18.5; z -= 2.1) {
     for (const x of [-7.6, -3.0, 1.6]) {
       const unit = shelfUnit(x, z, 3.0, 0, { tall: true });
       shelfWood.push(...unit.wood);
@@ -674,7 +741,7 @@ export function createInterior() {
     shelfSides.push(...unit.blue);
     fillShelf(unit, x, -2.5, 0, rand, bookBuckets);
   }
-  for (let z = -5.0; z >= -12; z -= 3.2) {
+  for (let z = -5.0; z >= -19; z -= 3.2) {
     const unit = shelfUnit(L + 0.4, z, 3.0, -Math.PI / 2, { tall: false });
     shelfWood.push(...unit.wood);
     shelfSides.push(...unit.blue);
@@ -700,7 +767,7 @@ export function createInterior() {
     lowBacks.push(...c.back);
     lowFrames.push(...c.frame);
   };
-  for (const [x, z] of [[L + 2.6, -12.6], [L + 2.6, -9.4]]) {
+  for (const [x, z] of [[L + 2.6, -20.4], [L + 2.6, -17.2]]) {
     const d = deskGeometries(x, z, 2.6, 1.1);
     lowTops.push(...d.top);
     lowLegs.push(...d.legs);
@@ -710,8 +777,8 @@ export function createInterior() {
     }
   }
   // Puesto de consulta con ordenador
-  lowTops.push(box(1.5, 0.04, 0.75, L + 5.6, 0.735, BACK + 0.9));
-  group.add(mesh([box(0.5, 0.34, 0.05, L + 5.6, 1.1, BACK + 0.62)], seatBlack, false));
+  lowTops.push(box(1.5, 0.04, 0.75, L + 5.6, 0.735, BACK + 1.0));
+  group.add(mesh([box(0.5, 0.34, 0.05, L + 5.6, 1.1, BACK + 0.72)], seatBlack, false));
   group.add(mesh(lowTops, laminate));
   group.add(mesh(lowLegs, tubular));
   group.add(mesh(lowSeats, seatBlue));
@@ -719,21 +786,21 @@ export function createInterior() {
   group.add(mesh(lowFrames, tubular));
 
   // Rótulo BIBLIOTECA y panel de anuncios en el muro del fondo
-  const biblioteca = panel(wallLettering('BIBLIOTECA'), 5.4, 1.35, L + 4.2, 3.1, BACK + 0.1, 0, {
+  const biblioteca = panel(wallLettering('BIBLIOTECA'), 5.4, 1.35, L + 4.6, 3.1, BACK + 0.12, 0, {
     transparent: true,
     material: { transparent: true, roughness: 0.95 }
   });
   group.add(biblioteca);
-  group.add(panel(noticeboard(), 2.4, 1.6, L + 3.2, 1.75, BACK + 0.1));
+  group.add(panel(noticeboard(), 2.4, 1.6, L + 3.4, 1.75, BACK + 0.12));
 
   // Lámparas colgantes de campana. En la parte de doble altura cuelgan de la
   // cubierta con cable largo; bajo la balconada, del propio forjado.
   const pendants = new THREE.Group();
   const cords = [];
   const bodies = [];
-  for (let z = -1.6; z >= -12.6; z -= 2.6) {
-    for (const x of [-8.6, -4.2, 0.2, 4.6]) {
-      const underSlab = z < VOID_Z;
+  for (let z = -1.6; z >= -20.5; z -= 2.6) {
+    for (const x of [-8.6, -4.2, 0.4, 5.0, 9.4]) {
+      const underSlab = z < VOID.z0 || x < VOID.x0;
       const top = underSlab ? SLAB_Y - SLAB_T - 0.02 : roofSoffitY(x, z) - 0.35;
       const y = underSlab ? 2.95 : 3.2;
       cords.push(box(0.016, top - y, 0.016, x, (top + y) / 2, z));
@@ -759,12 +826,14 @@ export function createInterior() {
     [4, 3.4, -2.5, 55],
     [-6, 3.2, -6.5, 55],
     [6, 3.2, -10, 50],
-    [-7, 3.2, -12.5, 45],
+    [-7, 3.2, -14.5, 45],
+    [3, 3.2, -18.5, 45],
+    [-8, 3.2, -20, 40],
     [-6, SLAB_Y + 2.2, -11, 45],
     [1.5, SLAB_Y + 2.2, -12, 45],
     [7.5, SLAB_Y + 2.2, -10.5, 40],
     [-9, SLAB_Y + 2.2, -9.5, 35],
-    [8, SLAB_Y + 1.8, VOID_Z - 1.5, 30]
+    [CORE.x1 - 1, SLAB_Y + 1.8, CORE.z1 + 1.5, 30]
   ]) {
     const light = new THREE.PointLight(0xfff4e4, power, 26, 2);
     light.position.set(x, y, z);

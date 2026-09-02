@@ -79,8 +79,8 @@ export const SECTIONS = [
       { k: 'Biblioteca', v: 'Cas Català–Illetes–Bendinat' },
       { k: 'Teléfono', v: '971 70 12 18' }
     ],
-    camera: { position: [8.8, 2.5, -2.1], target: [-5.6, 1.9, -10.4] },
-    via: [9.2, 2.3, 4],
+    camera: { position: [9.4, 2.6, -1.6], target: [-6.5, 2.0, -15.0] },
+    via: [9.6, 2.4, 4],
     interior: true
   },
   {
@@ -94,8 +94,8 @@ export const SECTIONS = [
       { k: 'También', v: 'Treball en grup' },
       { k: 'Reserva', v: 'cuc.reservio.com' }
     ],
-    camera: { position: [-5.4, 5.95, -8.7], target: [-11.2, 5.25, -14.2] },
-    via: [-5, 5.4, -1.0],
+    camera: { position: [-8.0, 5.95, -12.0], target: [-10.6, 5.3, -1.5] },
+    via: [-6, 5.4, -12.0],
     interior: true
   },
   {

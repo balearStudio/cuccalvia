@@ -18,12 +18,36 @@ export const roofSoffitY = (x, z) => ROOF.base + ROOF.slopeX * x + ROOF.slopeZ *
 const PLAN = {
   left: -12,
   right: 12,
-  back: -15,
+  back: -22.4,
   front: 0,
   wallThickness: 0.32,
-  glassFrom: -4,
+  glassFrom: -2.2,
   gap: 0.12 // holgura entre el remate del muro y el intradós de la cubierta
 };
+
+/**
+ * Perímetro de la planta, tomado del croquis del catastro: un rectángulo de
+ * unos 23 × 22 m con la esquina noreste recortada en dos escalones. El
+ * recuadro que queda entre los dos escalones es el que el catastro marca con
+ * III plantas — la caja del ascensor y la escalera.
+ *
+ * Se recorre en sentido antihorario visto desde arriba, empezando por la
+ * esquina suroeste; el primer tramo es la fachada principal, que se construye
+ * aparte (paño de revoco + muro cortina).
+ */
+const OUTLINE = [
+  [PLAN.left, 0],       // suroeste
+  [PLAN.right, 0],      // sureste
+  [PLAN.right, -12.4],
+  [4.6, -12.4],
+  [4.6, -17.7],
+  [-1.6, -17.7],
+  [-1.6, PLAN.back],
+  [PLAN.left, PLAN.back] // noroeste
+];
+
+/** Hueco de ascensor y escalera: el bloque de tres plantas del catastro. */
+export const CORE = { x0: -1.6, x1: 4.6, z0: -17.7, z1: -12.4 };
 
 const wallTop = (x, z) => roofSoffitY(x, z) - PLAN.gap;
 
@@ -196,21 +220,72 @@ function tube(a, b, radius, material) {
 function plinth(m) {
   const g = new THREE.Group();
   const w = 28.4;
-  const d = 22.6;
-  const slab = box(w, 0.9, d, m.plaza, [0.4, -0.45, -5.6]);
+  const d = 30.0;
+  const slab = box(w, 0.9, d, m.plaza, [0.4, -0.45, -9.5]);
   slab.receiveShadow = true;
   g.add(slab);
 
   // Zócalo de piedra en los bordes vistos
   const band = 0.92;
   const front = box(w + 0.16, band, 0.16, m.stone, [0.4, -0.46, 5.72]);
-  const leftS = box(0.16, band, d + 0.16, m.stone, [0.4 - w / 2 - 0.08, -0.46, -5.6]);
-  const rightS = box(0.16, band, d + 0.16, m.stone, [0.4 + w / 2 + 0.08, -0.46, -5.6]);
+  const leftS = box(0.16, band, d + 0.16, m.stone, [0.4 - w / 2 - 0.08, -0.46, -9.5]);
+  const rightS = box(0.16, band, d + 0.16, m.stone, [0.4 + w / 2 + 0.08, -0.46, -9.5]);
   g.add(front, leftS, rightS);
   return g;
 }
 
 /** Muros: paño ciego de la izquierda, laterales y trasera. */
+/**
+ * Muro entre dos puntos de la planta. El remate superior sigue el plano de
+ * cubierta, así que cada tramo se corta a su altura.
+ */
+function perimeterWall(m, a, b, holes = []) {
+  const T = PLAN.wallThickness;
+  const dx = b[0] - a[0];
+  const dz = b[1] - a[1];
+  const len = Math.hypot(dx, dz);
+  const angle = Math.atan2(dz, dx);
+
+  // El interior queda a la izquierda del recorrido, así que la extrusión sale
+  // hacia fuera y el muro se desplaza para ocupar el lado de dentro.
+  const outward = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+  const at = (t) => [a[0] + dx * t, a[1] + dz * t];
+
+  const outline = [
+    [0, 0],
+    [len, 0],
+    [len, wallTop(...at(1))],
+    [0, wallTop(...at(0))]
+  ];
+
+  const group = new THREE.Group();
+  for (const [depth, material, offset] of [[T, m.stucco, T], [0.03, m.plaster, T + 0.03]]) {
+    const mesh = wall(outline, holes, depth, material);
+    mesh.rotation.y = -angle;
+    mesh.position.set(a[0] - outward.x * offset, 0, a[1] - outward.z * offset);
+    group.add(mesh);
+  }
+
+  // Vidrios de los huecos
+  for (const h of holes) {
+    const t0 = h[0][0] / len;
+    const t1 = h[1][0] / len;
+    const y0 = h[0][1];
+    const hh = h[2][1] - y0;
+    const p0 = at(t0);
+    const p1 = at(t1);
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(h[1][0] - h[0][0], hh), m.darkGlass);
+    pane.rotation.y = -angle;
+    pane.position.set(
+      (p0[0] + p1[0]) / 2 - outward.x * (T - 0.08),
+      y0 + hh / 2,
+      (p0[1] + p1[1]) / 2 - outward.z * (T - 0.08)
+    );
+    group.add(pane);
+  }
+  return group;
+}
+
 function shell(m) {
   const g = new THREE.Group();
   const T = PLAN.wallThickness;
@@ -224,10 +299,10 @@ function shell(m) {
     [PLAN.left, wallTop(PLAN.left, fz)]
   ];
   const holes = [];
-  // Ventanas cuadradas de la planta alta
-  for (let i = 0; i < 4; i++) holes.push(rect(-10.55 + i * 1.42, 5.05, 0.86, 0.86));
+  // Ventanas cuadradas de la planta alta, repartidas por todo el paño
+  for (let i = 0; i < 5; i++) holes.push(rect(-10.6 + i * 1.7, 5.05, 0.86, 0.86));
   // Ventanas verticales de la planta baja
-  for (let i = 0; i < 3; i++) holes.push(rect(-10.4 + i * 2.05, 0.55, 0.92, 2.5));
+  for (let i = 0; i < 4; i++) holes.push(rect(-10.4 + i * 2.05, 0.55, 0.92, 2.5));
 
   const frontWall = wall(frontOutline, holes, T, m.stucco);
   frontWall.position.z = -T;
@@ -239,7 +314,7 @@ function shell(m) {
 
   // Persianas enrollables de las ventanas verticales, medio bajadas
   const blindMat = new THREE.MeshStandardMaterial({ color: 0x8d8f8c, roughness: 0.75, metalness: 0.15 });
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const x = -10.4 + i * 2.05;
     const drop = 1.5 + (i % 2) * 0.35;
     const blind = box(0.92, drop, 0.05, blindMat, [x + 0.46, 0.55 + 2.5 - drop / 2, -T + 0.1], false);
@@ -268,82 +343,30 @@ function shell(m) {
     g.add(frame);
   }
 
-  // --- Lateral izquierdo (x = -12) ---
-  const leftOutline = [
-    [0, 0],
-    [15, 0],
-    [15, wallTop(PLAN.left + T / 2, PLAN.back)],
-    [0, wallTop(PLAN.left + T / 2, PLAN.front)]
-  ];
-  const leftHoles = [];
-  for (let i = 0; i < 3; i++) leftHoles.push(rect(3.4 + i * 3.0, 4.9, 1.5, 1.0));
-  const leftWall = wall(leftOutline, leftHoles, T, m.stucco);
-  leftWall.rotation.y = Math.PI / 2;
-  leftWall.position.set(PLAN.left, 0, 0);
-  g.add(leftWall);
+  // --- Resto del perímetro, siguiendo el croquis del catastro ---
+  // Ventanas cuadradas de las salas, repartidas por tramo
+  const windowRuns = {
+    1: [], // sureste: da al vacío de la biblioteca, sin huecos altos
+    2: [1.5, 4.2],
+    3: [],
+    4: [1.6, 3.4],
+    5: [1.2, 2.9],
+    6: [2.0, 4.6, 7.2, 9.8], // trasera de la oficina y la sala 3
+    7: [2.2, 5.0, 7.8, 10.6, 13.4, 16.2] // flanco oeste: salas 1, 2 y 3
+  };
 
-  const leftLining = wall(leftOutline, leftHoles, 0.03, m.plaster);
-  leftLining.rotation.y = Math.PI / 2;
-  leftLining.position.set(PLAN.left + T, 0, 0);
-  g.add(leftLining);
-  for (const h of leftHoles) {
-    const z0 = -h[0][0];
-    const y0 = h[0][1];
-    const w = h[1][0] - h[0][0];
-    const hh = h[2][1] - y0;
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), m.darkGlass);
-    pane.rotation.y = Math.PI / 2;
-    pane.position.set(PLAN.left + 0.08, y0 + hh / 2, z0 - w / 2);
-    g.add(pane);
+  for (let i = 1; i < OUTLINE.length; i++) {
+    const a = OUTLINE[i];
+    const b = OUTLINE[(i + 1) % OUTLINE.length];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const holes = [];
+    for (const at of windowRuns[i] ?? []) {
+      if (at + 1.5 > len) continue;
+      holes.push(rect(at, 5.05, 1.4, 1.0)); // planta alta
+      if (i === 7 || i === 6) holes.push(rect(at, 1.2, 1.4, 2.0)); // planta baja
+    }
+    g.add(perimeterWall(m, a, b, holes));
   }
-
-  // --- Lateral derecho (x = 12) ---
-  const rightOutline = [
-    [0, 0],
-    [15, 0],
-    [15, wallTop(PLAN.right - T / 2, PLAN.front)],
-    [0, wallTop(PLAN.right - T / 2, PLAN.back)]
-  ];
-  const rightHoles = [];
-  for (let i = 0; i < 3; i++) rightHoles.push(rect(2.6 + i * 3.2, 1.1, 1.4, 2.2));
-  for (let i = 0; i < 3; i++) rightHoles.push(rect(2.6 + i * 3.2, 4.9, 1.4, 1.1));
-  const rightWall = wall(rightOutline, rightHoles, T, m.stucco);
-  rightWall.rotation.y = -Math.PI / 2;
-  rightWall.position.set(PLAN.right, 0, PLAN.back);
-  g.add(rightWall);
-
-  const rightLining = wall(rightOutline, rightHoles, 0.03, m.plaster);
-  rightLining.rotation.y = -Math.PI / 2;
-  rightLining.position.set(PLAN.right - T, 0, PLAN.back);
-  g.add(rightLining);
-  for (const h of rightHoles) {
-    const z0 = PLAN.back + h[0][0];
-    const y0 = h[0][1];
-    const w = h[1][0] - h[0][0];
-    const hh = h[2][1] - y0;
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), m.darkGlass);
-    pane.rotation.y = -Math.PI / 2;
-    pane.position.set(PLAN.right - 0.08, y0 + hh / 2, z0 + w / 2);
-    g.add(pane);
-  }
-
-  // --- Trasera (z = -15) ---
-  const backOutline = [
-    [PLAN.left, 0],
-    [PLAN.right, 0],
-    [PLAN.right, wallTop(PLAN.right, PLAN.back + T / 2)],
-    [PLAN.left, wallTop(PLAN.left, PLAN.back + T / 2)]
-  ];
-  const backHoles = [];
-  for (let i = 0; i < 5; i++) backHoles.push(rect(-8.6 + i * 3.6, 4.9, 1.6, 1.1));
-  backHoles.push(rect(-1.4, 0.2, 2.8, 2.4));
-  const backWall = wall(backOutline, backHoles, T, m.stucco);
-  backWall.position.set(0, 0, PLAN.back);
-  g.add(backWall);
-
-  const backLining = wall(backOutline, backHoles, 0.03, m.plaster);
-  backLining.position.set(0, 0, PLAN.back + T);
-  g.add(backLining);
 
   return g;
 }
@@ -468,43 +491,56 @@ function signage(cx, cy) {
   return mesh;
 }
 
-/** Cubierta inclinada con gran vuelo. */
+/**
+ * Cubierta inclinada con gran vuelo. Sigue el mismo perímetro escalonado de la
+ * planta, retranqueado hacia fuera, y vuela cinco metros sobre el pórtico.
+ */
 function roof(m) {
   const g = new THREE.Group();
-  const xMin = -13.7;
-  const xMax = 13.7;
-  const zMin = -16.3;
-  const zMax = 5.0;
-  const w = xMax - xMin;
-  const d = zMax - zMin;
-  const cx = (xMin + xMax) / 2;
-  const cz = (zMin + zMax) / 2;
+  const OVER = 1.6; // vuelo lateral y trasero
+  const FRONT = 5.0; // vuelo sobre el pórtico
+  const poly = [
+    [PLAN.left - OVER, FRONT],
+    [PLAN.right + OVER, FRONT],
+    [PLAN.right + OVER, -12.4 - OVER],
+    [4.6 + OVER, -12.4 - OVER],
+    [4.6 + OVER, -17.7 - OVER],
+    [-1.6 - OVER, -17.7 - OVER],
+    [-1.6 - OVER, PLAN.back - OVER],
+    [PLAN.left - OVER, PLAN.back - OVER]
+  ];
 
-  const geo = new THREE.BoxGeometry(w, ROOF.thickness, d, 1, 1, 1);
-  geo.translate(0, ROOF.thickness / 2, 0); // la cara inferior queda en y = 0 local
-  const shear = new THREE.Matrix4().set(
-    1, 0, 0, 0,
-    ROOF.slopeX, 1, ROOF.slopeZ, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1
+  // La forma se dibuja en XY con la y local hacia el norte, se extruye el
+  // canto y se tumba; después se cizalla para darle la pendiente.
+  const shape = new THREE.Shape();
+  poly.forEach(([x, z], i) => (i === 0 ? shape.moveTo(x, -z) : shape.lineTo(x, -z)));
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: ROOF.thickness, bevelEnabled: false });
+  geo.rotateX(-Math.PI / 2);
+  geo.applyMatrix4(
+    new THREE.Matrix4().set(
+      1, 0, 0, 0,
+      ROOF.slopeX, 1, ROOF.slopeZ, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1
+    )
   );
-  geo.applyMatrix4(shear);
+  geo.translate(0, ROOF.base, 0);
   geo.computeVertexNormals();
 
-  const slab = new THREE.Mesh(geo, [m.edge, m.edge, m.roofTop, m.soffit, m.edge, m.edge]);
-  slab.position.set(cx, roofSoffitY(cx, cz), cz);
+  const slab = new THREE.Mesh(geo, [m.soffit, m.edge]);
   slab.castShadow = true;
   slab.receiveShadow = true;
   g.add(slab);
 
-  // Canalón/goterón en el borde volado
-  const drip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.12), m.edge);
-  drip.position.set(cx, roofSoffitY(cx, zMax) - 0.05, zMax - 0.06);
+  // Goterón del borde volado
+  const drip = new THREE.Mesh(new THREE.BoxGeometry(PLAN.right - PLAN.left + OVER * 2, 0.1, 0.12), m.edge);
+  drip.position.set(0, roofSoffitY(0, FRONT) - 0.05, FRONT - 0.06);
   drip.rotation.z = Math.atan(ROOF.slopeX);
   drip.castShadow = true;
   g.add(drip);
 
-  g.add(roofRail(m, xMin + 0.8, xMax - 0.8));
+  g.add(roofRail(m, PLAN.left - OVER + 0.8, PLAN.right + OVER - 0.8));
   return g;
 }
 
@@ -554,10 +590,10 @@ function roofRail(m, xFrom, xTo) {
  */
 function roofTower(m) {
   const g = new THREE.Group();
-  const w = 4.2;
-  const d = 4.0;
-  const x = 1.5;
-  const z = -12.4;
+  const w = CORE.x1 - CORE.x0 - 0.6;
+  const d = CORE.z1 - CORE.z0 - 0.6;
+  const x = (CORE.x0 + CORE.x1) / 2;
+  const z = (CORE.z0 + CORE.z1) / 2;
   const h = 4.0;
   const base = roofSoffitY(x, z) + ROOF.thickness;
 
@@ -618,7 +654,7 @@ function roofTower(m) {
 function columns(m) {
   const g = new THREE.Group();
   const z = 3.1;
-  const xs = [-3.6, 0.4, 4.4, 8.4, 11.9];
+  const xs = [-1.2, 2.0, 5.2, 8.4, 11.6];
   for (const x of xs) {
     const h = roofSoffitY(x, z);
     const geo = new THREE.CylinderGeometry(0.31, 0.4, h, 24, 1);

@@ -80,6 +80,23 @@ parapetos macizos de hormigón. La piscina y la pista quedan al este, a la cota 
 Como hay dos cotas, el arbolado se planta con `groundAt(z)`: los pinos de detrás del talud
 arrancan ya en la cota del aparcamiento.
 
+### Planta, según el catastro
+
+`OUTLINE` en `scene/building.js` es el perímetro tomado del croquis catastral: un rectángulo
+de unos 23 × 22 m con la **esquina noreste recortada en dos escalones**. El recuadro que queda
+entre ambos escalones es el que el catastro marca con **III plantas** — la caja del ascensor y
+la escalera (`CORE`), que por arriba sale a la cubierta como la torre rotulada CUC.
+
+Los muros perimetrales se levantan recorriendo ese polígono (`perimeterWall`), y la cubierta
+se extruye del mismo perímetro retranqueado hacia fuera, con cinco metros de vuelo sobre el
+pórtico.
+
+En la planta primera, según el croquis de distribución, **toda la mitad este es «abierto»**:
+la doble altura sobre la sala de lectura. Las salas se agrupan al oeste y al norte alrededor
+de ese vacío — salas de estudio 1, 2 y 3, la sala de trabajo en grupo y la oficina—, cada una
+con su puerta y su tira de señalética en el paramento que da a la circulación (`ROOMS` en
+`scene/interior.js`).
+
 ### Geometría del edificio
 
 El edificio está centrado en el origen: la fachada principal mira hacia **+Z** (de `x = -12`
@@ -144,10 +161,10 @@ __cuc.jump(4)  // salta a una sección sin transición
 
 ## Pendiente
 
-- **Croquis de planta**: el reparto de la planta primera —salas de estudio 1, 2 y 3, sala de
-  trabajo en grupo y oficina— está puesto a ojo en `ROOMS`, dentro de `scene/interior.js`.
-  Con el croquis se colocan en su sitio cambiando solo esas coordenadas.
+- Afinar el amueblado dentro de la nueva planta: las salas y la sala de lectura han crecido
+  bastante y el mobiliario está repartido de forma genérica.
 - Sala infantil y zona de novedades de la biblioteca, que aparecen en el vídeo del recorrido.
+- Confirmar la posición exacta de las puertas y la circulación de la planta primera.
 - Confirmar la orientación real del edificio (`SITE.facadeAzimuth`) y las dimensiones de la
   planta con la vista aérea a escala.
 
