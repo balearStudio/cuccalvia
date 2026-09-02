@@ -66,7 +66,7 @@ export const SECTIONS = [
       { k: 'Sábados', v: '9–14 h' },
       { k: 'Acceso', v: 'Adaptado' }
     ],
-    camera: { position: [4, 2.1, 13], target: [4, 2.4, -3] },
+    camera: { position: [8.2, 2.7, 17.5], target: [3.4, 2.3, 1.5] },
     interior: false
   },
   {
@@ -74,13 +74,13 @@ export const SECTIONS = [
     nav: 'Biblioteca',
     kicker: '04 · Interior',
     title: 'Biblioteca',
-    text: 'El vestíbulo se prolonga en la sala de lectura de doble altura: la Biblioteca de Cas Català–Illetes–Bendinat. Estanterías perimetrales, mesas corridas junto al vidrio y luz natural durante todo el día. (Volumetría provisional: se ajustará con las fotos del interior.)',
+    text: 'El vestíbulo se prolonga en la sala de lectura de doble altura: la Biblioteca de Cas Català–Illetes–Bendinat. Estanterías azules sobre carcasa de haya, lámparas de campana colgando de la cubierta, las columnas redondas contra el vidrio y el rótulo BIBLIOTECA al fondo.',
     facts: [
       { k: 'Biblioteca', v: 'Cas Català–Illetes–Bendinat' },
       { k: 'Teléfono', v: '971 70 12 18' }
     ],
-    camera: { position: [7.2, 1.85, -2.6], target: [-5.5, 1.7, -12.5] },
-    via: [7.5, 1.9, 4],
+    camera: { position: [8.8, 2.5, -2.1], target: [-5.6, 1.9, -10.4] },
+    via: [9.2, 2.3, 4],
     interior: true
   },
   {
@@ -88,14 +88,14 @@ export const SECTIONS = [
     nav: 'Salas de estudio',
     kicker: '05 · Interior',
     title: 'Salas de estudio',
-    text: 'Toda la planta primera son salas de estudio: mesas corridas de laminado con sillas azules, puestos individuales con faldón contra el muro de las ventanas cuadradas, una sala pequeña de grupo con mesa redonda y pizarra, y un despacho. Terrazo pulido, falso techo registrable y zócalo de color, sala por sala.',
+    text: 'La planta primera es un pasillo con salas a un lado: tres salas de estudio —una de ellas de informática—, la sala de trabajo en grupo y la oficina. Cada puerta lleva su tira de señalética con el color de la sala y los poliedros de la marca del centro. Dentro, terrazo pulido, falso techo registrable, mesas de laminado con sillas azules y puestos individuales con faldón.',
     facts: [
-      { k: 'Planta', v: 'Primera' },
-      { k: 'Salas', v: '4 + despacho' },
+      { k: 'Salas de estudio', v: '1 · 2 · 3' },
+      { k: 'También', v: 'Treball en grup' },
       { k: 'Reserva', v: 'cuc.reservio.com' }
     ],
-    camera: { position: [-2.9, 6.0, -7.9], target: [-10.4, 5.25, -13.8] },
-    via: [-4, 5.4, -0.5],
+    camera: { position: [-5.4, 5.95, -8.7], target: [-11.2, 5.25, -14.2] },
+    via: [-5, 5.4, -1.0],
     interior: true
   },
   {

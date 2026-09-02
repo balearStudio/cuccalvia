@@ -53,6 +53,7 @@ src/
     interior.js            vestíbulo, biblioteca y salas de estudio
     environment.js         terreno, pinar, setos, muretes, mobiliario urbano, sierra
     character.js           personaje a escala (1,93 m) del autor
+    signage.js             identidad gráfica del CUC: tiras de puerta, rótulos
     atmosphere.js          sol real por hora, tiempo de Open-Meteo y estación
     sky.js                 cúpula de cielo por shader + mapa de entorno (PMREM)
     rain.js                lluvia
@@ -92,6 +93,14 @@ las juntas del paño y la veta de la piedra se dibujan encima en un canvas
 (`scene/textures.js`). Para cambiar de recorte basta con tocar las coordenadas de `PATCHES`
 en el script y volver a ejecutarlo.
 
+### Identidad gráfica
+
+El centro señaliza cada puerta con una tira vertical: banda de color con el nombre de la sala
+y su pictograma, y debajo, sobre blanco, los poliedros facetados de dos tonos que son la marca
+del CUC. `scene/signage.js` los dibuja en canvas, con un color por estancia
+(`ROOM_COLORS`), y de ahí salen también el rótulo BIBLIOTECA, la pizarra del pasillo y el
+panel de anuncios.
+
 ### Hora, estación y tiempo real
 
 `scene/atmosphere.js` calcula la posición del sol para las coordenadas del CUC y la fecha del
@@ -115,10 +124,10 @@ __cuc.jump(4)  // salta a una sección sin transición
 
 ## Pendiente
 
-- **Croquis de planta**: el reparto de las salas de la planta primera (cuatro salas de
-  estudio y un despacho) está puesto a ojo en `ROOMS`, dentro de `scene/interior.js`. Con el
-  croquis se colocan en su sitio cambiando solo esas coordenadas.
-- Afinar la biblioteca de la planta baja con fotografías del interior.
+- **Croquis de planta**: el reparto de la planta primera —salas de estudio 1, 2 y 3, sala de
+  trabajo en grupo y oficina— está puesto a ojo en `ROOMS`, dentro de `scene/interior.js`.
+  Con el croquis se colocan en su sitio cambiando solo esas coordenadas.
+- Sala infantil y zona de novedades de la biblioteca, que aparecen en el vídeo del recorrido.
 - Confirmar la orientación real del edificio (`SITE.facadeAzimuth`) y las dimensiones de la
   planta con la vista aérea a escala.
 

@@ -204,6 +204,34 @@ function build(photos) {
   }, { base: PHOTO.paving, alpha: 0.65 });
   const concrete = finish(pavingCanvas, 1 / 3);
 
+  /* --- Losa de piedra de la explanada de acceso: 1 baldosa = 2,4 m --- */
+  const plazaCanvas = fromPhoto(photos.paving, 512, (ctx, size) => {
+    blotches(ctx, size, { seed: 71, count: 16, amp: 6 });
+    // Despiece de losas de 1,2 m
+    ctx.strokeStyle = 'rgba(120,112,96,0.5)';
+    ctx.lineWidth = 2;
+    for (const p of [0, size / 2]) {
+      ctx.beginPath();
+      ctx.moveTo(p + 1, 0);
+      ctx.lineTo(p + 1, size);
+      ctx.moveTo(0, p + 1);
+      ctx.lineTo(size, p + 1);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,252,244,0.35)';
+    ctx.lineWidth = 1.5;
+    for (const p of [3, size / 2 + 3]) {
+      ctx.beginPath();
+      ctx.moveTo(p, 0);
+      ctx.lineTo(p, size);
+      ctx.moveTo(0, p);
+      ctx.lineTo(size, p);
+      ctx.stroke();
+    }
+    speckle(ctx, size, { seed: 72, amp: 10, density: 0.35, dotSize: 1.2 });
+  }, { base: PHOTO.paving, alpha: 0.6 });
+  const plaza = finish(plazaCanvas, 1 / 2.4);
+
   /* --- Piedra de los muretes: 1 baldosa = 2,5 m --- */
   const stoneCanvas = fromPhoto(photos.stone, 512, (ctx, size) => {
     const rnd = mulberry32(9);
@@ -354,5 +382,5 @@ function build(photos) {
   })();
   const wood = finish(woodCanvas, 2);
 
-  return { stucco: wall, stuccoBump: wallBump, concrete, stone, grass, gravel, asphalt, wood, terrazzo, ceiling };
+  return { stucco: wall, stuccoBump: wallBump, concrete, plaza, stone, grass, gravel, asphalt, wood, terrazzo, ceiling };
 }

@@ -51,6 +51,14 @@ function makeMaterials() {
     envMapIntensity: 0.28
   });
 
+  // Losa de piedra de la explanada de acceso
+  const plaza = new THREE.MeshStandardMaterial({
+    map: t.plaza,
+    color: 0xffffff,
+    roughness: 0.86,
+    envMapIntensity: 0.3
+  });
+
   const stone = new THREE.MeshStandardMaterial({
     map: t.stone,
     color: 0xffffff,
@@ -125,7 +133,7 @@ function makeMaterials() {
     metalness: 0
   });
 
-  return { stucco, concrete, stone, column, glass, darkGlass, mullion, steel, roofTop, soffit, edge, plaster };
+  return { stucco, concrete, plaza, stone, column, glass, darkGlass, mullion, steel, roofTop, soffit, edge, plaster };
 }
 
 /* ------------------------------------------------------------------ */
@@ -188,7 +196,7 @@ function plinth(m) {
   const g = new THREE.Group();
   const w = 28.4;
   const d = 22.6;
-  const slab = box(w, 0.9, d, m.concrete, [0.4, -0.45, -5.6]);
+  const slab = box(w, 0.9, d, m.plaza, [0.4, -0.45, -5.6]);
   slab.receiveShadow = true;
   g.add(slab);
 
@@ -368,9 +376,34 @@ function curtainWall(m) {
   g.add(box(0.12, door.h, 0.2, m.mullion, [door.x - door.w / 2, door.h / 2, 0.02], false));
   g.add(box(0.12, door.h, 0.2, m.mullion, [door.x + door.w / 2, door.h / 2, 0.02], false));
 
-  // Rótulo del centro sobre la puerta
-  g.add(signage(door.x, 3.55));
+  // Rótulos serigrafiados en el vidrio
+  g.add(signage(door.x + 3.4, 3.55));
+  g.add(glassLabel('BIBLIOTECA', door.x - 4.4, 3.55, 3.4));
   return g;
+}
+
+/** Rótulo suelto serigrafiado en el vidrio (BIBLIOTECA, IMEB…). */
+function glassLabel(text, cx, cy, width) {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 192;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 104px Archivo, Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '6px';
+  ctx.fillText(text, c.width / 2, c.height / 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, width * 0.1875),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.9, depthWrite: false })
+  );
+  mesh.position.set(cx, cy, 0.09);
+  mesh.renderOrder = 3;
+  return mesh;
 }
 
 /** Rótulo "CUC · Centre Universitari de Calvià" serigrafiado en el vidrio. */
@@ -478,22 +511,25 @@ function truss(m, xFrom, xTo) {
   return g;
 }
 
-/** Pórtico: columnas cilíndricas blancas. */
+/**
+ * Pórtico. Las columnas son gruesas y ligeramente troncocónicas —más anchas
+ * abajo—, tal como se ven en el vídeo del acceso.
+ */
 function columns(m) {
   const g = new THREE.Group();
   const z = 3.1;
-  const xs = [-3.5, -0.5, 2.5, 5.5, 8.5, 11.5];
+  const xs = [-3.6, 0.4, 4.4, 8.4, 11.9];
   for (const x of xs) {
     const h = roofSoffitY(x, z);
-    const geo = new THREE.CylinderGeometry(0.29, 0.32, h, 20, 1);
+    const geo = new THREE.CylinderGeometry(0.31, 0.4, h, 24, 1);
     const col = new THREE.Mesh(geo, m.column);
     col.position.set(x, h / 2, z);
     col.castShadow = true;
     col.receiveShadow = true;
     g.add(col);
     // Basa
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.16, 20), m.concrete);
-    base.position.set(x, 0.08, z);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.5, 0.14, 24), m.concrete);
+    base.position.set(x, 0.07, z);
     base.castShadow = true;
     base.receiveShadow = true;
     g.add(base);
@@ -504,11 +540,11 @@ function columns(m) {
 /** Escalinata de acceso, rampa lateral y barandillas. */
 function approach(m) {
   const g = new THREE.Group();
-  const steps = 4;
+  const steps = 5;
   const rise = 0.9 / steps;
-  const run = 0.42;
-  const width = 9.2;
-  const cx = 4;
+  const run = 0.46;
+  const width = 14.5; // ocupa casi todo el frente acristalado
+  const cx = 4.2;
 
   for (let i = 0; i < steps; i++) {
     const y = -0.9 + rise * (i + 0.5);
@@ -516,8 +552,8 @@ function approach(m) {
     const s = box(width, rise, run, m.concrete, [cx, y, z]);
     g.add(s);
   }
-  // Rellano de aproximación
-  g.add(box(width + 2.4, 0.14, 3.4, m.concrete, [cx, -0.96, 5.72 + steps * run + 1.7]));
+  // Explanada de losa de piedra delante de la escalinata
+  g.add(box(width + 6, 0.14, 12, m.plaza, [cx, -0.96, 5.72 + steps * run + 6]));
 
   // Muretes laterales de la escalinata
   for (const sx of [-1, 1]) {
@@ -528,6 +564,41 @@ function approach(m) {
         5.72 + (steps * run) / 2
       ])
     );
+  }
+
+  // Pérgola metálica del área de estar, a la derecha del acceso
+  const pergola = new THREE.Group();
+  const post = new THREE.MeshStandardMaterial({ color: 0x8b8f92, metalness: 0.7, roughness: 0.45 });
+  for (const px of [-2.4, 2.4]) {
+    for (const pz of [-1.8, 1.8]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.6, 10), post);
+      leg.position.set(19.5 + px, -0.9 + 1.3, 10 + pz);
+      leg.castShadow = true;
+      pergola.add(leg);
+    }
+  }
+  for (let i = -2.4; i <= 2.4; i += 0.42) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 4.1), post);
+    slat.position.set(19.5 + i, 0.46, 10);
+    slat.castShadow = true;
+    pergola.add(slat);
+  }
+  for (const pz of [-1.8, 1.8]) {
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.14, 0.12), post);
+    beam.position.set(19.5, 0.36, 10 + pz);
+    pergola.add(beam);
+  }
+  g.add(pergola);
+
+  // Papeleras cilíndricas junto a la entrada
+  for (const [bx, bz] of [[-3.2, 8.4], [12.4, 8.4]]) {
+    const bin = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26, 0.24, 0.85, 14),
+      new THREE.MeshStandardMaterial({ color: 0x2c2f31, roughness: 0.5, metalness: 0.3 })
+    );
+    bin.position.set(bx, -0.45, bz);
+    bin.castShadow = true;
+    g.add(bin);
   }
 
   // Rampa accesible a la derecha, con barandilla metálica
