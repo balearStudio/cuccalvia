@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildTextures, PHOTO } from './textures.js';
 
 /**
@@ -236,6 +237,24 @@ function shell(m) {
   frontLining.position.z = -T - 0.03;
   g.add(frontLining);
 
+  // Persianas enrollables de las ventanas verticales, medio bajadas
+  const blindMat = new THREE.MeshStandardMaterial({ color: 0x8d8f8c, roughness: 0.75, metalness: 0.15 });
+  for (let i = 0; i < 3; i++) {
+    const x = -10.4 + i * 2.05;
+    const drop = 1.5 + (i % 2) * 0.35;
+    const blind = box(0.92, drop, 0.05, blindMat, [x + 0.46, 0.55 + 2.5 - drop / 2, -T + 0.1], false);
+    g.add(blind);
+    // Lamas
+    const slats = [];
+    for (let y = 0; y < drop - 0.06; y += 0.09) {
+      slats.push(new THREE.BoxGeometry(0.92, 0.012, 0.02).translate(x + 0.46, 0.55 + 2.5 - drop + y + 0.05, -T + 0.13));
+    }
+    const slatMesh = new THREE.Mesh(mergeGeometries(slats), new THREE.MeshStandardMaterial({ color: 0x6f7270, roughness: 0.8 }));
+    g.add(slatMesh);
+    // Cajón de persiana
+    g.add(box(1.06, 0.24, 0.12, m.stucco, [x + 0.46, 0.55 + 2.5 + 0.12, -T + 0.08], false));
+  }
+
   // Vidrios de esos huecos
   for (const h of holes) {
     const x0 = h[0][0];
@@ -376,6 +395,21 @@ function curtainWall(m) {
   g.add(box(0.12, door.h, 0.2, m.mullion, [door.x - door.w / 2, door.h / 2, 0.02], false));
   g.add(box(0.12, door.h, 0.2, m.mullion, [door.x + door.w / 2, door.h / 2, 0.02], false));
 
+  // Focos empotrados en el intradós del pórtico
+  const spotBody = new THREE.MeshStandardMaterial({ color: 0x6b6559, metalness: 0.6, roughness: 0.4 });
+  const spotLens = new THREE.MeshStandardMaterial({
+    color: 0xffe6b8, emissive: 0xffca7a, emissiveIntensity: 0.9, roughness: 0.35
+  });
+  for (const sx of [-3.6, -1.2, 1.2, 3.6]) {
+    const x = door.x + sx;
+    const y = roofSoffitY(x, 1.4) - 0.18;
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.3, 12), spotBody);
+    can.position.set(x, y, 1.4);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 12), spotLens);
+    lens.position.set(x, y - 0.16, 1.4);
+    g.add(can, lens);
+  }
+
   // Rótulos serigrafiados en el vidrio
   g.add(signage(door.x + 3.4, 3.55));
   g.add(glassLabel('BIBLIOTECA', door.x - 4.4, 3.55, 3.4));
@@ -470,44 +504,45 @@ function roof(m) {
   drip.castShadow = true;
   g.add(drip);
 
-  g.add(truss(m, xMin + 0.6, xMax - 0.6));
+  g.add(roofRail(m, xMin + 0.8, xMax - 0.8));
   return g;
 }
 
-/** Celosía metálica triangular sobre el borde alto de la cubierta. */
-function truss(m, xFrom, xTo) {
+/**
+ * Barandilla de seguridad de la cubierta.
+ *
+ * En las fotografías no hay ninguna celosía: sobre el borde alto corre una
+ * barandilla metálica sencilla —montantes y dos largueros— con la fila de
+ * lucernarios blancos justo detrás.
+ */
+function roofRail(m, xFrom, xTo) {
   const g = new THREE.Group();
-  const zA = 3.05;
-  const zB = 3.95;
-  const zTop = 3.5;
-  const H = 1.15;
-  const r = 0.045;
-  const top = (x, z) => roofSoffitY(x, z) + ROOF.thickness;
+  const z = 3.3;
+  const r = 0.03;
+  const top = (x) => roofSoffitY(x, z) + ROOF.thickness;
+  const P = (x, dy) => new THREE.Vector3(x, top(x) + dy, z);
 
-  const P = (x, z, dy = 0) => new THREE.Vector3(x, top(x, z) + dy, z);
+  // Largueros
+  for (const dy of [0.52, 1.0]) g.add(tube(P(xFrom, dy), P(xTo, dy), r, m.steel));
 
-  // Cordones longitudinales
-  g.add(tube(P(xFrom, zA, 0.12), P(xTo, zA, 0.12), r, m.steel));
-  g.add(tube(P(xFrom, zB, 0.12), P(xTo, zB, 0.12), r, m.steel));
-  g.add(tube(P(xFrom, zTop, H), P(xTo, zTop, H), r * 1.15, m.steel));
-
-  const step = 1.5;
+  // Montantes
+  const step = 1.6;
   for (let x = xFrom; x <= xTo + 0.01; x += step) {
     const xa = Math.min(x, xTo);
-    const xb = Math.min(x + step, xTo);
-    // Marco transversal
-    g.add(tube(P(xa, zA, 0.12), P(xa, zTop, H), r * 0.8, m.steel));
-    g.add(tube(P(xa, zB, 0.12), P(xa, zTop, H), r * 0.8, m.steel));
-    g.add(tube(P(xa, zA, 0.12), P(xa, zB, 0.12), r * 0.7, m.steel));
-    // Diagonales
-    if (xb > xa) {
-      g.add(tube(P(xa, zA, 0.12), P(xb, zTop, H), r * 0.6, m.steel));
-      g.add(tube(P(xa, zB, 0.12), P(xb, zTop, H), r * 0.6, m.steel));
-    }
-    // Montante corto hasta la cubierta
-    g.add(tube(P(xa, zA, 0), P(xa, zA, 0.12), r * 0.9, m.steel));
-    g.add(tube(P(xa, zB, 0), P(xa, zB, 0.12), r * 0.9, m.steel));
+    g.add(tube(P(xa, 0), P(xa, 1.04), r * 1.1, m.steel));
   }
+
+  // Lucernarios: cajas blancas alineadas detrás de la barandilla
+  const lights = [];
+  for (let x = xFrom + 1; x <= xTo - 1; x += 2.2) {
+    const y = roofSoffitY(x, z + 0.9) + ROOF.thickness;
+    lights.push(new THREE.BoxGeometry(0.9, 0.26, 0.5).translate(x, y + 0.13, z + 0.9));
+  }
+  const skylights = new THREE.Mesh(mergeGeometries(lights), m.soffit);
+  skylights.castShadow = true;
+  skylights.receiveShadow = true;
+  g.add(skylights);
+
   return g;
 }
 

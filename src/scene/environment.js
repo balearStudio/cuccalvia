@@ -164,15 +164,16 @@ export function createEnvironment() {
   group.add(ground);
 
   /* ---------------- Caminos ---------------- */
+  // Todo el acceso está pavimentado con la misma losa de piedra del edificio
   const pathMat = new THREE.MeshStandardMaterial({
-    map: t.gravel,
-    color: 0xe0d3b4,
-    roughness: 0.98,
-    envMapIntensity: 0.25
+    map: t.plaza,
+    color: 0xffffff,
+    roughness: 0.88,
+    envMapIntensity: 0.3
   });
   const paths = [];
   // Acceso frontal
-  const main = new THREE.PlaneGeometry(11, 22);
+  const main = new THREE.PlaneGeometry(13, 22);
   main.rotateX(-Math.PI / 2);
   main.translate(4, GROUND_Y + 0.02, 19);
   paths.push(main);
@@ -184,6 +185,11 @@ export function createEnvironment() {
 
   const pathMesh = new THREE.Mesh(mergeGeometries(paths), pathMat);
   pathMesh.receiveShadow = true;
+  // Escala de la losa: el plano tiene UV 0..1, así que se ajusta aparte
+  pathMat.map = t.plaza.clone();
+  pathMat.map.wrapS = pathMat.map.wrapT = THREE.RepeatWrapping;
+  pathMat.map.repeat.set(9, 9);
+  pathMat.map.needsUpdate = true;
   group.add(pathMesh);
 
   /* ---------------- Muretes de piedra ---------------- */
@@ -215,10 +221,11 @@ export function createEnvironment() {
   // En la vista aérea el aparcamiento queda al norte, sobre el edificio, y de él
   // baja una pasarela hasta la entrada; la pista de tenis está al este.
   const PARK_Y = GROUND_Y + 2.2;
+  // Hormigón impreso con despiece en abanico, como en las fotos del aparcamiento
   const asphaltMat = new THREE.MeshStandardMaterial({
     map: t.asphalt,
-    color: 0xb9b6ae,
-    roughness: 0.96,
+    color: 0xffffff,
+    roughness: 0.94,
     envMapIntensity: 0.2
   });
 
@@ -243,6 +250,33 @@ export function createEnvironment() {
   retainingMesh.castShadow = true;
   retainingMesh.receiveShadow = true;
   group.add(retainingMesh);
+
+  // Torre de escaleras y ascensor, con el rótulo CUC
+  const towerMat = new THREE.MeshStandardMaterial({ map: t.plaza, color: 0xd8c1ae, roughness: 0.94 });
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(4.4, 6.2, 4.0), towerMat);
+  tower.position.set(-13.5, GROUND_Y + 3.1, 33.5);
+  tower.castShadow = true;
+  tower.receiveShadow = true;
+  group.add(tower);
+  const towerCap = new THREE.Mesh(new THREE.BoxGeometry(4.7, 0.22, 4.3), towerMat);
+  towerCap.position.set(-13.5, GROUND_Y + 6.3, 33.5);
+  towerCap.castShadow = true;
+  group.add(towerCap);
+  // Antena y foco de la cubierta de la torre
+  const mastMat = new THREE.MeshStandardMaterial({ color: 0x5b6063, metalness: 0.6, roughness: 0.5 });
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.2, 6), mastMat);
+  mast.position.set(-12.4, GROUND_Y + 8.0, 33.5);
+  group.add(mast);
+  // Rótulo CUC en relieve
+  const cucMat = new THREE.MeshStandardMaterial({ color: 0xf1efe8, roughness: 0.8 });
+  const cucLetters = [];
+  let cx0 = -14.6;
+  for (const ch of ['C', 'U', 'C']) {
+    cucLetters.push(new THREE.BoxGeometry(0.62, 0.72, 0.06).translate(cx0, GROUND_Y + 4.2, 35.53));
+    if (ch === 'U') cucLetters.push(new THREE.BoxGeometry(0.4, 0.2, 0.07).translate(cx0, GROUND_Y + 4.5, 35.54));
+    cx0 += 0.86;
+  }
+  group.add(new THREE.Mesh(mergeGeometries(cucLetters), cucMat));
 
   // Marcas de las plazas
   const marks = [];
@@ -289,6 +323,47 @@ export function createEnvironment() {
   group.add(carGlassMesh, carTyreMesh);
   void carBody;
 
+  // Escalera de zigzag entre el aparcamiento y la explanada, con los parapetos
+  // macizos de hormigón que se ven en las fotos del jardín
+  const zig = new THREE.Group();
+  const stepMat = new THREE.MeshStandardMaterial({ map: t.plaza, color: 0xffffff, roughness: 0.9 });
+  const parapetMat = new THREE.MeshStandardMaterial({ map: t.stone, color: 0xd8cdba, roughness: 0.95 });
+  const flightSteps = 7;
+  const rise = 2.2 / (flightSteps * 2);
+  const run = 0.34;
+  const flights = [
+    { x: -6.6, z0: 34.0, dir: -1 },
+    { x: -4.2, z0: 34.0 - flightSteps * run - 1.6, dir: -1 }
+  ];
+  let level = PARK_Y;
+  const zigSteps = [];
+  const zigWalls = [];
+  for (const f of flights) {
+    for (let i = 0; i < flightSteps; i++) {
+      level -= rise;
+      zigSteps.push(new THREE.BoxGeometry(2.2, rise + 0.02, run).translate(f.x, level + rise / 2, f.z0 + f.dir * (i * run)));
+    }
+    // Rellano
+    zigSteps.push(new THREE.BoxGeometry(2.6, 0.16, 1.6).translate(f.x + 1.2, level - 0.08, f.z0 + f.dir * (flightSteps * run + 0.8)));
+    for (const sx of [-1, 1]) {
+      zigWalls.push(
+        new THREE.BoxGeometry(0.34, 1.15, flightSteps * run + 1.8).translate(
+          f.x + sx * 1.27,
+          level + 0.9,
+          f.z0 + f.dir * (flightSteps * run / 2 + 0.4)
+        )
+      );
+    }
+  }
+  zig.add(new THREE.Mesh(mergeGeometries(zigSteps), stepMat));
+  const zigWallMesh = new THREE.Mesh(mergeGeometries(zigWalls), parapetMat);
+  zigWallMesh.castShadow = true;
+  zig.add(zigWallMesh);
+  zig.traverse((o) => {
+    if (o.isMesh) o.receiveShadow = true;
+  });
+  group.add(zig);
+
   // Pasarela desde el aparcamiento hasta la plaza de acceso
   const walkway = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.25, 8.6), pathMat);
   walkway.position.set(4, GROUND_Y + 1.1, 32.4);
@@ -308,57 +383,69 @@ export function createEnvironment() {
   parapetMesh.castShadow = true;
   group.add(parapetMesh);
 
-  /* ---------------- Pista de tenis (al este) ---------------- */
-  const court = new THREE.Group();
-  const courtBase = new THREE.Mesh(
-    new THREE.BoxGeometry(19, 0.3, 34),
-    new THREE.MeshStandardMaterial({ color: 0x2f6b52, roughness: 0.95 })
-  );
-  courtBase.position.set(44, GROUND_Y + 0.15, -4);
-  courtBase.receiveShadow = true;
-  court.add(courtBase);
+  /* ---------------- Piscina y pista, al este ---------------- */
+  const sports = new THREE.Group();
 
-  const play = new THREE.Mesh(
-    new THREE.PlaneGeometry(11, 24),
-    new THREE.MeshStandardMaterial({ color: 0x3f8f68, roughness: 0.95 })
-  );
-  play.rotation.x = -Math.PI / 2;
-  play.position.set(44, GROUND_Y + 0.31, -4);
-  court.add(play);
+  // Solera del recinto
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(26, 0.3, 34), new THREE.MeshStandardMaterial({
+    map: t.plaza, color: 0xe8dcc6, roughness: 0.92
+  }));
+  deck.position.set(45, GROUND_Y + 0.15, -4);
+  deck.receiveShadow = true;
+  sports.add(deck);
 
-  const courtLines = [];
-  for (const [w, d, dx, dz] of [
-    [11, 0.1, 0, 12], [11, 0.1, 0, -12], [0.1, 24, 5.5, 0], [0.1, 24, -5.5, 0],
-    [8.2, 0.1, 0, 6.4], [8.2, 0.1, 0, -6.4], [0.1, 12.8, 0, 0]
-  ]) {
-    const g = new THREE.BoxGeometry(w, 0.02, d);
-    g.translate(44 + dx, GROUND_Y + 0.32, -4 + dz);
-    courtLines.push(g);
+  // Vaso de la piscina
+  const water = new THREE.Mesh(
+    new THREE.BoxGeometry(12.5, 0.24, 25),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x1f7fa8, roughness: 0.08, metalness: 0.05, envMapIntensity: 1.2,
+      transparent: true, opacity: 0.92
+    })
+  );
+  water.position.set(43, GROUND_Y + 0.24, -4);
+  sports.add(water);
+  const coping = [];
+  for (const [w, d, dx, dz] of [[13.3, 0.4, 0, 12.7], [13.3, 0.4, 0, -12.7], [0.4, 25.8, 6.45, 0], [0.4, 25.8, -6.45, 0]]) {
+    coping.push(new THREE.BoxGeometry(w, 0.14, d).translate(43 + dx, GROUND_Y + 0.34, -4 + dz));
   }
-  court.add(new THREE.Mesh(mergeGeometries(courtLines), new THREE.MeshStandardMaterial({ color: 0xf2f2ec, roughness: 0.9 })));
+  sports.add(new THREE.Mesh(mergeGeometries(coping), new THREE.MeshStandardMaterial({ color: 0xeee9dc, roughness: 0.9 })));
+  // Corcheras
+  const lanes = [];
+  for (let i = -2; i <= 2; i++) lanes.push(new THREE.BoxGeometry(0.12, 0.03, 24).translate(43 + i * 2.4, GROUND_Y + 0.37, -4));
+  sports.add(new THREE.Mesh(mergeGeometries(lanes), new THREE.MeshStandardMaterial({ color: 0xe4e7ea, roughness: 0.7 })));
 
-  // Valla perimetral
+  // Valla perimetral y báculos de alumbrado
   const fencePosts = [];
-  for (let i = 0; i <= 10; i++) {
-    const g = new THREE.CylinderGeometry(0.06, 0.06, 3.2, 6);
-    g.translate(44 - 9.5, GROUND_Y + 1.9, -4 - 17 + i * 3.4);
-    fencePosts.push(g.clone());
-    const g2 = g.clone();
-    g2.translate(19, 0, 0);
-    fencePosts.push(g2);
+  for (let i = 0; i <= 11; i++) {
+    const z = -4 - 17 + i * 3.1;
+    fencePosts.push(new THREE.CylinderGeometry(0.06, 0.06, 3.0, 6).translate(32.2, GROUND_Y + 1.8, z));
   }
-  court.add(new THREE.Mesh(mergeGeometries(fencePosts), new THREE.MeshStandardMaterial({ color: 0x5c6468, metalness: 0.6, roughness: 0.5 })));
-  const mesh1 = new THREE.Mesh(
-    new THREE.PlaneGeometry(34, 3.2),
-    new THREE.MeshStandardMaterial({ color: 0x3c4448, transparent: true, opacity: 0.22, side: THREE.DoubleSide, roughness: 0.6 })
+  sports.add(new THREE.Mesh(mergeGeometries(fencePosts), new THREE.MeshStandardMaterial({
+    color: 0x33383b, metalness: 0.6, roughness: 0.5
+  })));
+  const fenceMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(34, 3.0),
+    new THREE.MeshStandardMaterial({ color: 0x2f3437, transparent: true, opacity: 0.2, side: THREE.DoubleSide, roughness: 0.6 })
   );
-  mesh1.rotation.y = Math.PI / 2;
-  mesh1.position.set(34.5, GROUND_Y + 1.9, -4);
-  court.add(mesh1);
-  court.traverse((o) => {
+  fenceMesh.rotation.y = Math.PI / 2;
+  fenceMesh.position.set(32.2, GROUND_Y + 1.8, -4);
+  sports.add(fenceMesh);
+
+  // Báculos blancos altos del recinto deportivo
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0xdcdedd, metalness: 0.4, roughness: 0.5 });
+  for (const [px, pz] of [[34, 8], [34, -16], [54, 8], [54, -16]]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 7.5, 8), poleMat);
+    pole.position.set(px, GROUND_Y + 3.75, pz);
+    pole.castShadow = true;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.4), poleMat);
+    head.position.set(px, GROUND_Y + 7.5, pz);
+    sports.add(pole, head);
+  }
+
+  sports.traverse((o) => {
     if (o.isMesh) o.receiveShadow = true;
   });
-  group.add(court);
+  group.add(sports);
 
   /* ---------------- Vegetación ---------------- */
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6d5137, roughness: 0.95 });
@@ -391,8 +478,8 @@ export function createEnvironment() {
   };
   const busy = (x, z) =>
     (z > 2 && x > -26 && x < 30) || // frente del edificio y acceso
-    (z > 30 && x > -20 && x < 30) || // aparcamiento y pasarela
-    (x > 31 && x < 57 && z > -24 && z < 16); // pista de tenis
+    (z > 28 && x > -22 && x < 30) || // aparcamiento, torre y escalera
+    (x > 30 && x < 60 && z > -24 && z < 16); // piscina y pista
   for (let i = 0; i < 700 && spots.length < 96; i++) {
     const a = rand() * Math.PI * 2;
     const r = 26 + rand() * 56;

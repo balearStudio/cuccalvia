@@ -17,18 +17,22 @@ import * as THREE from 'three';
 
 /** Colores medidos sobre la fotografía (scripts/extract-textures.mjs). */
 export const PHOTO = {
-  wall: '#e3cda7', // revoco al sol
-  wallShade: '#6c624d', // el mismo revoco en sombra
-  column: '#6e7171', // fuste de una columna, en sombra
-  glass: '#535959', // muro cortina
-  stone: '#d9cca3',
-  paving: '#d8d1b0'
+  wall: '#efd5ba', // revoco al sol: rosado cálido, no arena
+  wallShade: '#ac9987', // el mismo revoco en sombra
+  soffit: '#9b8264',
+  column: '#787571', // fuste de una columna, en sombra
+  glass: '#90918e', // muro cortina
+  stone: '#e6d1b3',
+  paving: '#e1d3ba',
+  stamped: '#9e8c7b' // hormigón impreso del aparcamiento
 };
 
 const FILES = {
   wall: 'textures/wall.png',
+  plaza: 'textures/plaza.png',
   paving: 'textures/paving.png',
-  stone: 'textures/stone.png'
+  stone: 'textures/stone.png',
+  stamped: 'textures/stamped.png'
 };
 
 function mulberry32(seed) {
@@ -186,14 +190,13 @@ export function buildTextures() {
 
 function build(photos) {
   /* --- Revoco de la fachada: 1 baldosa = 2,2 m --- */
-  // El revoco real es liso y uniforme: manchas muy suaves, juntas apenas
-  // insinuadas y grano fino, para que la repetición no se lea como manchurrón.
+  // A resolución completa el recorte ya trae las juntas horizontales del paño y
+  // el grano del mortero, así que la foto va casi pura: solo se le añade algo de
+  // grano fino para que aguante de cerca.
   const wallCanvas = fromPhoto(photos.wall, 512, (ctx, size) => {
-    blotches(ctx, size, { seed: 11, count: 9, amp: 3.5 });
-    joints(ctx, size, { rows: 6, alpha: 0.06 });
-    speckle(ctx, size, { seed: 7, amp: 7, density: 0.55, dotSize: 1 });
-  }, { base: PHOTO.wall, alpha: 0.5 });
-  const wallRepeat = 1 / 3.2;
+    speckle(ctx, size, { seed: 7, amp: 6, density: 0.5, dotSize: 1 });
+  }, { base: PHOTO.wall, alpha: 0.92 });
+  const wallRepeat = 1 / 2.3; // deja las juntas cada ~0,57 m, como en la fachada
   const wall = finish(wallCanvas, wallRepeat);
   const wallBump = toBump(wallCanvas, wallRepeat);
 
@@ -205,7 +208,7 @@ function build(photos) {
   const concrete = finish(pavingCanvas, 1 / 3);
 
   /* --- Losa de piedra de la explanada de acceso: 1 baldosa = 2,4 m --- */
-  const plazaCanvas = fromPhoto(photos.paving, 512, (ctx, size) => {
+  const plazaCanvas = fromPhoto(photos.plaza, 512, (ctx, size) => {
     blotches(ctx, size, { seed: 71, count: 16, amp: 6 });
     // Despiece de losas de 1,2 m
     ctx.strokeStyle = 'rgba(120,112,96,0.5)';
@@ -229,7 +232,7 @@ function build(photos) {
       ctx.stroke();
     }
     speckle(ctx, size, { seed: 72, amp: 10, density: 0.35, dotSize: 1.2 });
-  }, { base: PHOTO.paving, alpha: 0.6 });
+  }, { base: PHOTO.stone, alpha: 0.8 });
   const plaza = finish(plazaCanvas, 1 / 2.4);
 
   /* --- Piedra de los muretes: 1 baldosa = 2,5 m --- */
@@ -289,18 +292,11 @@ function build(photos) {
   })();
   const gravel = finish(gravelCanvas, 10);
 
-  /* --- Asfalto del aparcamiento --- */
-  const asphaltCanvas = (() => {
-    const size = 512;
-    const c = canvas(size);
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#6d6b66';
-    ctx.fillRect(0, 0, size, size);
-    blotches(ctx, size, { seed: 61, count: 26, amp: 16 });
-    speckle(ctx, size, { seed: 62, amp: 30, density: 0.5, dotSize: 1.8 });
-    return c;
-  })();
-  const asphalt = finish(asphaltCanvas, 8);
+  /* --- Hormigón impreso del aparcamiento: 1 baldosa = 4 m --- */
+  const asphaltCanvas = fromPhoto(photos.stamped, 512, (ctx, size) => {
+    speckle(ctx, size, { seed: 62, amp: 12, density: 0.35, dotSize: 1.4 });
+  }, { base: PHOTO.stamped, alpha: 0.9 });
+  const asphalt = finish(asphaltCanvas, 1 / 4);
 
   /* --- Terrazo de las plantas interiores (1 baldosa = 1,2 m) --- */
   const terrazzoCanvas = (() => {

@@ -60,7 +60,9 @@ src/
     textures.js            texturas: campo de color de las fotos + detalle en canvas
   ui/ui.js                 menú lateral, paneles, puntos y HUD
   styles/main.css          interfaz superpuesta
-public/images/             fotografías de referencia del edificio
+public/images/             fotografías ligeras para el botón «Foto real»
+reference/photos/          fotografías a resolución completa (no se sirven:
+                           solo alimentan la extracción de texturas)
 ```
 
 ### Geometría del edificio
@@ -80,18 +82,20 @@ se ajusta todo el conjunto a la vez**.
 
 ### Texturas a partir de las fotografías
 
-`npm run textures` ejecuta `scripts/extract-textures.mjs`, que recorta de
-`public/images/cuc-fachada.jpg` el revoco de la fachada, el hormigón del acceso y el murete
-de piedra, **les quita la iluminación** (resta un desenfoque fuerte y devuelve la media del
-parche, así no quedan pegadas las sombras del arbolado ni el degradado del sol), los espeja
-para que sean continuos y los guarda en `public/textures/`. También mide los colores reales
-del revoco, la columna, el vidrio, la piedra y el pavimento en `palette.json`.
+`npm run textures` ejecuta `scripts/extract-textures.mjs`, que recorta de las fotografías de
+`reference/photos/` el revoco de la fachada, la losa de piedra del acceso, los peldaños y el
+hormigón impreso del aparcamiento, **les quita la iluminación** (resta un desenfoque fuerte y
+devuelve la media del parche, así no quedan pegadas las sombras del arbolado ni el degradado
+del sol), los espeja para que sean continuos y los guarda en `public/textures/`. También mide
+los colores reales del revoco, la columna, el vidrio, la piedra y los pavimentos en
+`palette.json`.
 
-Las fotos de partida son de 822 × 313 px, así que aportan el **color y las manchas de gran
-escala** reales, no el detalle fino — que a esa resolución no existe. El grano del mortero,
-las juntas del paño y la veta de la piedra se dibujan encima en un canvas
-(`scene/textures.js`). Para cambiar de recorte basta con tocar las coordenadas de `PATCHES`
-en el script y volver a ejecutarlo.
+Las fotos de partida son de 2048 px, así que el recorte del revoco ya trae **las juntas
+horizontales del paño y el grano del mortero de verdad**: la textura va casi pura, con solo
+algo de grano añadido para que aguante de cerca. En los pavimentos, donde el espejado
+generaría un patrón de caleidoscopio, la foto se desenfoca y queda como campo de color, y el
+despiece se dibuja encima en canvas (`scene/textures.js`). Para cambiar de recorte basta con
+tocar las coordenadas de `PATCHES` en el script y volver a ejecutarlo.
 
 ### Identidad gráfica
 

@@ -1,9 +1,10 @@
 {
-  "wall": "#e3cda7",
-  "wallShade": "#6c624d",
-  "soffit": "#625a3a",
-  "column": "#6e7171",
-  "glass": "#535959",
-  "stone": "#d9cca3",
-  "paving": "#d8d1b0"
+  "wall": "#efd5ba",
+  "wallShade": "#ac9987",
+  "soffit": "#9b8264",
+  "column": "#787571",
+  "glass": "#90918e",
+  "stone": "#e6d1b3",
+  "paving": "#e1d3ba",
+  "stamped": "#9e8c7b"
 }

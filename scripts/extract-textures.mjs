@@ -15,7 +15,14 @@
 import sharp from 'sharp';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-const SRC = 'public/images/cuc-fachada.jpg';
+/**
+ * Las fotografías de partida están en reference/photos/ a resolución completa
+ * (2048 px): no se sirven con la web, solo alimentan este script. En
+ * public/images/ van copias ligeras, que son las que muestra el botón
+ * «Foto real».
+ */
+const SRC = 'reference/photos/fachada-frontal.jpg';
+const PARKING = 'reference/photos/aparcamiento.jpg';
 const OUT = 'public/textures';
 mkdirSync(OUT, { recursive: true });
 
@@ -29,23 +36,30 @@ mkdirSync(OUT, { recursive: true });
  * encima scene/textures.js.
  */
 const PATCHES = [
-  // Franja de revoco soleado entre las ventanas altas y la sombra del arbolado
-  { name: 'wall', left: 256, top: 177, width: 88, height: 22, size: 256, sigma: 5, soften: 11 },
-  // Peldaños y pavimento de hormigón del acceso
-  { name: 'paving', left: 430, top: 278, width: 132, height: 20, size: 256, sigma: 5, soften: 13 },
-  // Murete de piedra de la derecha
-  { name: 'stone', left: 652, top: 262, width: 140, height: 26, size: 256, sigma: 6, soften: 13 }
+  // Paño de revoco al sol, entre juntas y sin sombra de arbolado.
+  // A esta resolución el recorte ya trae la junta horizontal y el grano del
+  // mortero de verdad, así que apenas hace falta suavizar.
+  { name: 'wall', left: 420, top: 515, width: 210, height: 120, size: 512, sigma: 9, soften: 2 },
+  // Losa de piedra caliza del rellano de acceso
+  { name: 'plaza', left: 560, top: 890, width: 420, height: 90, size: 512, sigma: 9, soften: 12 },
+  // Peldaños de la escalinata
+  { name: 'paving', left: 700, top: 832, width: 320, height: 52, size: 384, sigma: 7, soften: 10 },
+  // Muretes y antepechos, de la misma piedra
+  { name: 'stone', left: 560, top: 890, width: 420, height: 90, size: 384, sigma: 9, soften: 12 },
+  // Hormigón impreso del aparcamiento, con su despiece en abanico
+  { name: 'stamped', left: 520, top: 1080, width: 560, height: 180, size: 512, sigma: 11, soften: 3, src: PARKING }
 ];
 
 /** Zonas de las que solo se toma el color medio. */
 const SAMPLES = {
-  wall: [290, 180, 52, 22],        // revoco al sol
-  wallShade: [214, 210, 34, 30],   // el mismo revoco en sombra
-  soffit: [470, 105, 60, 14],      // intradós del gran vuelo sobre el pórtico
-  column: [420, 150, 8, 110],      // fuste de una columna
-  glass: [445, 160, 45, 100],      // muro cortina
-  stone: [652, 262, 140, 26],
-  paving: [430, 282, 132, 16]
+  wall: [430, 520, 180, 100],      // revoco al sol
+  wallShade: [180, 620, 120, 90],  // el mismo revoco en sombra
+  soffit: [980, 300, 220, 40],     // intradós del gran vuelo sobre el pórtico
+  column: [1010, 480, 22, 200],    // fuste de una columna
+  glass: [1160, 500, 90, 200],     // muro cortina
+  stone: [560, 890, 420, 90],
+  paving: [700, 835, 320, 50],
+  stamped: [520, 1080, 560, 180]
 };
 
 const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
@@ -88,7 +102,7 @@ async function mirrorTile(image, size) {
 const palette = {};
 for (const [name, [left, top, width, height]] of Object.entries(SAMPLES)) {
   // stats() ignora las operaciones encadenadas: hay que materializar el recorte
-  const crop = await sharp(SRC)
+  const crop = await sharp(name === 'stamped' ? PARKING : SRC)
     .extract({ left: Math.round(left), top: Math.round(top), width: Math.round(width), height: Math.round(height) })
     .png()
     .toBuffer();
@@ -103,7 +117,7 @@ writeFileSync(`${OUT}/palette.json`, `${JSON.stringify(palette, null, 2)}\n`);
 console.log('palette', palette);
 
 for (const p of PATCHES) {
-  const patch = await sharp(SRC)
+  const patch = await sharp(p.src ?? SRC)
     .extract({ left: p.left, top: p.top, width: p.width, height: p.height })
     .png()
     .toBuffer();
