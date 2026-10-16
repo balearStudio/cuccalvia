@@ -230,34 +230,23 @@ export function createEnvironment() {
   });
 
   const lot = new THREE.Mesh(new THREE.BoxGeometry(52, 0.3, 22), asphaltMat);
-  lot.position.set(2, PARK_Y - 0.15, -33);
+  lot.position.set(2, PARK_Y - 0.15, -37);
   lot.receiveShadow = true;
   group.add(lot);
 
-  // Talud entre el edificio y el aparcamiento, con su muro de coronación
-  const bankRise = PARK_Y - 0.3 - GROUND_Y;
-  const bankRun = 6.5;
-  const bank = new THREE.Mesh(
-    new THREE.BoxGeometry(62, 0.8, Math.hypot(bankRun, bankRise)),
-    new THREE.MeshStandardMaterial({ map: t.grass, color: 0x8f9a68, roughness: 1 })
-  );
-  bank.position.set(2, (GROUND_Y + PARK_Y - 0.3) / 2, -16 - bankRun / 2);
-  bank.rotation.x = Math.atan2(bankRise, bankRun); // el lado de atrás sube
-  bank.receiveShadow = true;
-  group.add(bank);
-  // Relleno macizo bajo el aparcamiento
-  const fillBox = new THREE.Mesh(
-    new THREE.BoxGeometry(62, PARK_Y - GROUND_Y, 30),
-    new THREE.MeshStandardMaterial({ map: t.grass, color: 0x8a9463, roughness: 1 })
-  );
-  fillBox.position.set(2, (GROUND_Y + PARK_Y) / 2 - 0.2, -37);
+  // El aparcamiento está a la misma cota que la cubierta, así que entre ambos
+  // no hay talud sino un muro de contención y el foso que cruza la pasarela.
+  const fillMat = new THREE.MeshStandardMaterial({ map: t.stone, color: 0xc9bca6, roughness: 0.96 });
+  const fillBox = new THREE.Mesh(new THREE.BoxGeometry(62, PARK_Y - GROUND_Y, 26), fillMat);
+  fillBox.position.set(2, (GROUND_Y + PARK_Y) / 2 - 0.15, -39);
   fillBox.receiveShadow = true;
+  fillBox.castShadow = true;
   group.add(fillBox);
 
   const retaining = [];
-  retaining.push(new THREE.BoxGeometry(52, 1.1, 0.6).translate(2, PARK_Y + 0.25, -22.2));
+  retaining.push(new THREE.BoxGeometry(52, 1.1, 0.6).translate(2, PARK_Y + 0.25, -26.2));
   for (const sx of [-1, 1]) {
-    retaining.push(new THREE.BoxGeometry(0.6, 1.1, 22).translate(2 + sx * 26, PARK_Y + 0.25, -33));
+    retaining.push(new THREE.BoxGeometry(0.6, 1.1, 22).translate(2 + sx * 26, PARK_Y + 0.25, -37));
   }
   const retainingMesh = new THREE.Mesh(mergeGeometries(retaining), stoneMat);
   retainingMesh.castShadow = true;
@@ -270,7 +259,7 @@ export function createEnvironment() {
   const marks = [];
   for (let i = 0; i < 14; i++) {
     const g = new THREE.BoxGeometry(0.12, 0.02, 4.6);
-    g.translate(-18 + i * 2.5, PARK_Y + 0.01, -29);
+    g.translate(-18 + i * 2.5, PARK_Y + 0.01, -33);
     marks.push(g);
   }
   group.add(
@@ -284,7 +273,7 @@ export function createEnvironment() {
   const bodyBuckets = bodyColors.map(() => []);
   for (let i = 0; i < 9; i++) {
     const x = -16.8 + i * 2.5 + rand() * 0.3;
-    const c = carGeometries(rand, x, -29.1 + rand() * 0.4, Math.PI * (rand() > 0.5 ? 1 : 0));
+    const c = carGeometries(rand, x, -33.1 + rand() * 0.4, Math.PI * (rand() > 0.5 ? 1 : 0));
     for (const list of [c.body, c.glass, c.tyre]) list.forEach((g) => g.translate(0, PARK_Y - GROUND_Y, 0));
     bodyBuckets[Math.floor(rand() * bodyColors.length)].push(...c.body);
     carGlass.push(...c.glass);
@@ -304,6 +293,49 @@ export function createEnvironment() {
     new THREE.MeshStandardMaterial({ color: 0x2a3438, roughness: 0.12, metalness: 0.3, envMapIntensity: 1.1 })
   ));
   group.add(new THREE.Mesh(mergeGeometries(carTyre), new THREE.MeshStandardMaterial({ color: 0x1b1d1f, roughness: 0.95 })));
+
+  /* ------- Pasarela del aparcamiento a la terraza de cubierta ------- */
+  // Tramo de rejilla con barandillas de aspas, junto a la torre del ascensor
+  const bridge = new THREE.Group();
+  const gratingMat = new THREE.MeshStandardMaterial({
+    color: 0x8f9499, metalness: 0.65, roughness: 0.55
+  });
+  const bridgeX = 2.5;
+  const bridgeY = PARK_Y + 0.22;
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.08, 3.2), gratingMat);
+  deck.position.set(bridgeX, bridgeY, -25.1);
+  deck.castShadow = true;
+  deck.receiveShadow = true;
+  bridge.add(deck);
+
+  const railBars = [];
+  for (const sx of [-1, 1]) {
+    const x = bridgeX + sx * 1.1;
+    const z0 = -26.7;
+    const z1 = -23.5;
+    railBars.push(new THREE.BoxGeometry(0.05, 0.05, z1 - z0).translate(x, bridgeY + 1.0, (z0 + z1) / 2));
+    railBars.push(new THREE.BoxGeometry(0.04, 0.04, z1 - z0).translate(x, bridgeY + 0.12, (z0 + z1) / 2));
+    const posts = 3;
+    for (let i = 0; i <= posts; i++) {
+      const z = z0 + ((z1 - z0) / posts) * i;
+      railBars.push(new THREE.BoxGeometry(0.05, 1.02, 0.05).translate(x, bridgeY + 0.51, z));
+      if (i === posts) continue;
+      // Aspas
+      const za = z;
+      const zb = z0 + ((z1 - z0) / posts) * (i + 1);
+      const d = Math.hypot(zb - za, 0.85);
+      for (const dir of [1, -1]) {
+        const bar = new THREE.BoxGeometry(0.03, 0.03, d);
+        bar.rotateX(Math.atan2(0.85 * dir, zb - za));
+        bar.translate(x, bridgeY + 0.55, (za + zb) / 2);
+        railBars.push(bar);
+      }
+    }
+  }
+  const bridgeRail = new THREE.Mesh(mergeGeometries(railBars), gratingMat);
+  bridgeRail.castShadow = true;
+  bridge.add(bridgeRail);
+  group.add(bridge);
 
   /* ------- Escalera del flanco derecho: de la explanada al aparcamiento ------- */
   // Sube los 8,5 m de desnivel en cuatro tramos con rellanos, encajada entre
@@ -375,17 +407,17 @@ export function createEnvironment() {
   const sports = new THREE.Group();
   const deckMat = new THREE.MeshStandardMaterial({ map: t.plaza, color: 0xe0d4bd, roughness: 0.94 });
 
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(24, 0.3, 46), deckMat);
-  deck.position.set(38, GROUND_Y + 0.15, -12);
-  deck.receiveShadow = true;
-  sports.add(deck);
+  const sportsDeck = new THREE.Mesh(new THREE.BoxGeometry(24, 0.3, 46), deckMat);
+  sportsDeck.position.set(38, GROUND_Y + 0.15, -12);
+  sportsDeck.receiveShadow = true;
+  sports.add(sportsDeck);
 
   // Pista de pádel
   const courtX = 33;
   const courtZ = -4;
   const court = new THREE.Mesh(
     new THREE.BoxGeometry(10.4, 0.06, 20.4),
-    new THREE.MeshStandardMaterial({ color: 0x2f7a55, roughness: 0.95 })
+    new THREE.MeshStandardMaterial({ color: 0x1b6fb5, roughness: 0.94 })
   );
   court.position.set(courtX, GROUND_Y + 0.33, courtZ);
   court.receiveShadow = true;

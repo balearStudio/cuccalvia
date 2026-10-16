@@ -357,6 +357,32 @@ function build(photos) {
   })();
   const ceiling = finish(ceilingCanvas, 1 / 1.2);
 
+  /* --- Baldosa de la terraza de cubierta: 1 baldosa = 2,6 m --- */
+  const roofTileCanvas = (() => {
+    const size = 512;
+    const c = canvas(size);
+    const ctx = c.getContext('2d');
+    const rnd = mulberry32(64);
+    const n = 8; // 8 × 8 piezas de unos 32 cm
+    const step = size / n;
+    ctx.fillStyle = '#9d6a4c';
+    ctx.fillRect(0, 0, size, size);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const tone = 1 + (rnd() - 0.5) * 0.14;
+        const r = Math.min(255, 196 * tone) | 0;
+        const g = Math.min(255, 132 * tone) | 0;
+        const b = Math.min(255, 99 * tone) | 0;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(i * step + 1.5, j * step + 1.5, step - 3, step - 3);
+      }
+    }
+    blotches(ctx, size, { seed: 65, count: 14, amp: 6 });
+    speckle(ctx, size, { seed: 66, amp: 12, density: 0.3, dotSize: 1.2 });
+    return c;
+  })();
+  const roofTile = finish(roofTileCanvas, 1 / 2.6);
+
   /* --- Madera clara del mobiliario --- */
   const woodCanvas = (() => {
     const size = 512;
@@ -378,5 +404,5 @@ function build(photos) {
   })();
   const wood = finish(woodCanvas, 2);
 
-  return { stucco: wall, stuccoBump: wallBump, concrete, plaza, stone, grass, gravel, asphalt, wood, terrazzo, ceiling };
+  return { stucco: wall, stuccoBump: wallBump, concrete, plaza, stone, grass, gravel, asphalt, wood, terrazzo, ceiling, roofTile };
 }

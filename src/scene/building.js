@@ -533,6 +533,27 @@ function roof(m) {
   slab.receiveShadow = true;
   g.add(slab);
 
+  // Solado de la terraza, sobre el forjado
+  const deckShape = new THREE.Shape();
+  poly.forEach(([x, z], i) => (i === 0 ? deckShape.moveTo(x, -z) : deckShape.lineTo(x, -z)));
+  deckShape.closePath();
+  const deckGeo = new THREE.ShapeGeometry(deckShape);
+  deckGeo.rotateX(-Math.PI / 2);
+  deckGeo.applyMatrix4(
+    new THREE.Matrix4().set(
+      1, 0, 0, 0,
+      ROOF.slopeX, 1, ROOF.slopeZ, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1
+    )
+  );
+  deckGeo.translate(0, ROOF.base + ROOF.thickness + 0.01, 0);
+  // ShapeGeometry da las UV directamente en metros y la textura ya lleva su
+  // repetición, así que no hay que volver a escalarlas.
+  const deck = new THREE.Mesh(deckGeo, m.roofTop);
+  deck.receiveShadow = true;
+  g.add(deck);
+
   // Goterón del borde volado
   const drip = new THREE.Mesh(new THREE.BoxGeometry(PLAN.right - PLAN.left + OVER * 2, 0.1, 0.12), m.edge);
   drip.position.set(0, roofSoffitY(0, FRONT) - 0.05, FRONT - 0.06);
@@ -553,32 +574,54 @@ function roof(m) {
  */
 function roofRail(m, xFrom, xTo) {
   const g = new THREE.Group();
-  const z = 3.3;
-  const r = 0.03;
-  const top = (x) => roofSoffitY(x, z) + ROOF.thickness;
-  const P = (x, dy) => new THREE.Vector3(x, top(x) + dy, z);
+  const r = 0.028;
+  const bars = [];
 
-  // Largueros
-  for (const dy of [0.52, 1.0]) g.add(tube(P(xFrom, dy), P(xTo, dy), r, m.steel));
+  /** Tramo de barandilla con sus aspas, siguiendo el borde de la terraza. */
+  const run = (ax, az, bx, bz) => {
+    const len = Math.hypot(bx - ax, bz - az);
+    const steps = Math.max(1, Math.round(len / 1.9));
+    const top = (x, z) => roofSoffitY(x, z) + ROOF.thickness;
+    const P = (t, dy) => {
+      const x = ax + (bx - ax) * t;
+      const z = az + (bz - az) * t;
+      return new THREE.Vector3(x, top(x, z) + dy, z);
+    };
+    // Pasamanos y larguero bajo
+    for (const dy of [1.02, 0.08]) bars.push(tube(P(0, dy), P(1, dy), r, m.steel));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      bars.push(tube(P(t, 0), P(t, 1.04), r * 1.15, m.steel));
+      if (i === steps) break;
+      // Aspa entre montantes
+      const t2 = (i + 1) / steps;
+      bars.push(tube(P(t, 0.1), P(t2, 0.95), r * 0.75, m.steel));
+      bars.push(tube(P(t, 0.95), P(t2, 0.1), r * 0.75, m.steel));
+      // Disco del cruce, como en las fotos
+      const mid = P((t + t2) / 2, 0.52);
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.03, 10), m.steel);
+      disc.position.copy(mid);
+      disc.rotation.x = Math.PI / 2;
+      g.add(disc);
+    }
+  };
 
-  // Montantes
-  const step = 1.6;
-  for (let x = xFrom; x <= xTo + 0.01; x += step) {
-    const xa = Math.min(x, xTo);
-    g.add(tube(P(xa, 0), P(xa, 1.04), r * 1.1, m.steel));
-  }
+  // Recorre el perímetro de la terraza, retranqueado del borde volado
+  const IN = 0.5;
+  const edge = [
+    [xFrom, 4.3],
+    [xTo, 4.3],
+    [xTo, -12.4 - 1.6 + IN],
+    [4.6 + 1.6 - IN, -12.4 - 1.6 + IN],
+    [4.6 + 1.6 - IN, -17.7 - 1.6 + IN],
+    [-1.6 - 1.6 + IN, -17.7 - 1.6 + IN],
+    [-1.6 - 1.6 + IN, PLAN.back - 1.6 + IN],
+    [xFrom, PLAN.back - 1.6 + IN],
+    [xFrom, 4.3]
+  ];
+  for (let i = 0; i < edge.length - 1; i++) run(edge[i][0], edge[i][1], edge[i + 1][0], edge[i + 1][1]);
 
-  // Lucernarios: cajas blancas alineadas detrás de la barandilla
-  const lights = [];
-  for (let x = xFrom + 1; x <= xTo - 1; x += 2.2) {
-    const y = roofSoffitY(x, z + 0.9) + ROOF.thickness;
-    lights.push(new THREE.BoxGeometry(0.9, 0.26, 0.5).translate(x, y + 0.13, z + 0.9));
-  }
-  const skylights = new THREE.Mesh(mergeGeometries(lights), m.soffit);
-  skylights.castShadow = true;
-  skylights.receiveShadow = true;
-  g.add(skylights);
-
+  g.add(...bars);
   return g;
 }
 
@@ -611,12 +654,30 @@ function roofTower(m) {
   // Rejilla de ventilación del cuarto de máquinas
   g.add(box(0.06, 0.42, 0.62, m.mullion, [x - w / 2 - 0.02, base + 1.05, z - 0.5], false));
 
+  // Puertas del ascensor, en la cara que da a la terraza
+  const steelDoor = new THREE.MeshStandardMaterial({ color: 0xb8bcbd, metalness: 0.82, roughness: 0.3 });
+  const liftGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x1d262a, metalness: 0.1, roughness: 0.08, transparent: true, opacity: 0.6, envMapIntensity: 1.1
+  });
+  const doorZ = z + d / 2;
+  g.add(box(1.55, 2.35, 0.1, steelDoor, [x - 0.5, base + 1.2, doorZ + 0.01], false));
+  const liftPane = new THREE.Mesh(new THREE.PlaneGeometry(1.26, 2.06), liftGlass);
+  liftPane.position.set(x - 0.5, base + 1.2, doorZ + 0.07);
+  g.add(liftPane);
+  g.add(box(0.05, 2.1, 0.09, steelDoor, [x - 0.5, base + 1.2, doorZ + 0.08], false));
+
+  // Buzón verde de PREMSA
+  g.add(box(0.46, 0.38, 0.14, new THREE.MeshStandardMaterial({ color: 0x1d6b43, roughness: 0.55, metalness: 0.3 }),
+    [x - 1.65, base + 1.35, doorZ + 0.08], false));
+
   // Proyector y antena, como en la foto desde la carretera de atrás
   const metal = new THREE.MeshStandardMaterial({ color: 0x74777a, metalness: 0.6, roughness: 0.45 });
-  const flood = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.16), metal);
-  flood.position.set(x - w / 2 - 0.12, base + 3.1, z + 1.2);
-  flood.rotation.z = 0.3;
-  g.add(flood);
+  for (const [fx, fz] of [[x - w / 2 - 0.12, z + 1.2], [x + 0.6, z - d / 2 - 0.12]]) {
+    const flood = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.16), metal);
+    flood.position.set(fx, base + 3.1, fz);
+    flood.rotation.z = 0.3;
+    g.add(flood);
+  }
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.2, 6), metal);
   mast.position.set(x + 1.5, base + h + 1.7, z - 1.2);
   g.add(mast);
@@ -624,7 +685,9 @@ function roofTower(m) {
   aerial.position.set(x + 1.5, base + h + 3.0, z - 1.2);
   g.add(aerial);
 
-  // Rótulo CUC en la cara norte, la que mira al aparcamiento
+  // Rótulo CUC en la cara norte, la que mira al aparcamiento, sobre su panel
+  g.add(box(2.5, 2.2, 0.03, new THREE.MeshStandardMaterial({ color: 0xcbb5a3, roughness: 0.9 }),
+    [x, base + 2.3, z - d / 2 - 0.015], false));
   const letters = [];
   let lx = x - 1.0;
   for (const ch of ['C', 'U', 'C']) {
@@ -724,7 +787,48 @@ function approach(m) {
     beam.position.set(19.5, 0.36, 10 + pz);
     pergola.add(beam);
   }
+  // Lona color crema tendida bajo la estructura
+  const canvasMat = new THREE.MeshStandardMaterial({
+    color: 0xf0e3c8, roughness: 0.95, side: THREE.DoubleSide
+  });
+  const awning = new THREE.Mesh(new THREE.PlaneGeometry(4.9, 3.7, 10, 1), canvasMat);
+  const pos = awning.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    // Ondulación de la tela entre travesaños
+    pos.setZ(i, Math.sin(pos.getX(i) * 2.4) * 0.05);
+  }
+  pos.needsUpdate = true;
+  awning.geometry.computeVertexNormals();
+  awning.rotation.x = -Math.PI / 2;
+  awning.position.set(19.5, 0.3, 10);
+  pergola.add(awning);
   g.add(pergola);
+
+  // Mesa y bancos corridos de hormigón bajo la pérgola
+  const stoneFurniture = m.stone;
+  const picnic = new THREE.Group();
+  picnic.add(box(0.9, 0.09, 2.6, stoneFurniture, [19.5, 0.26, 10]));
+  for (const sx of [-1, 1]) {
+    picnic.add(box(0.42, 0.09, 2.6, stoneFurniture, [19.5 + sx * 0.95, -0.1, 10]));
+    picnic.add(box(0.3, 0.36, 2.4, stoneFurniture, [19.5 + sx * 0.95, -0.28, 10]));
+  }
+  picnic.add(box(0.7, 0.36, 2.4, stoneFurniture, [19.5, 0.03, 10]));
+  g.add(picnic);
+
+  // Aparcabicis de acero
+  const rackMat = new THREE.MeshStandardMaterial({ color: 0xa9adaf, metalness: 0.7, roughness: 0.4 });
+  const rack = [];
+  rack.push(new THREE.BoxGeometry(3.2, 0.08, 0.08).translate(15.4, -0.82, 9.2));
+  rack.push(new THREE.BoxGeometry(3.2, 0.08, 0.08).translate(15.4, -0.82, 10.0));
+  for (let i = 0; i < 7; i++) {
+    const bx = 15.4 - 1.4 + i * 0.47;
+    rack.push(new THREE.BoxGeometry(0.06, 0.5, 0.06).translate(bx, -0.6, 9.2));
+    rack.push(new THREE.BoxGeometry(0.06, 0.5, 0.06).translate(bx, -0.6, 10.0));
+    rack.push(new THREE.BoxGeometry(0.06, 0.06, 0.86).translate(bx, -0.36, 9.6));
+  }
+  const rackMesh = new THREE.Mesh(mergeGeometries(rack), rackMat);
+  rackMesh.castShadow = true;
+  g.add(rackMesh);
 
   // Papeleras cilíndricas junto a la entrada
   for (const [bx, bz] of [[-3.2, 8.4], [12.4, 8.4]]) {

@@ -69,7 +69,12 @@ reference/photos/          fotografías a resolución completa (no se sirven:
 
 El edificio tiene dos plantas —biblioteca abajo, salas de estudio arriba— y una **tercera que
 solo ocupa la torre del ascensor y el almacén**, que asoma por encima de la cubierta con el
-rótulo CUC en la cara que mira al aparcamiento (`roofTower` en `scene/building.js`).
+rótulo CUC en la cara que mira al aparcamiento y las puertas del ascensor en la que da a la
+terraza (`roofTower` en `scene/building.js`).
+
+La **cubierta es una terraza transitable** de baldosa de barro, con la barandilla de aspas y
+discos que el centro repite por dentro y por fuera. Desde el aparcamiento se cruza a ella por
+una **pasarela de rejilla**, porque ambos están a la misma cota.
 
 El solar está en ladera. El edificio y su explanada de acceso están abajo, a `y = -0.9`; el
 **aparcamiento queda detrás y a la cota de la cubierta** (`PARK_Y = 7.6`), de modo que desde
