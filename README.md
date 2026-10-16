@@ -102,6 +102,15 @@ de ese vacío — salas de estudio 1, 2 y 3, la sala de trabajo en grupo y la of
 con su puerta y su tira de señalética en el paramento que da a la circulación (`ROOMS` en
 `scene/interior.js`).
 
+La circulación, sacada de las fotos de la planta alta: la escalera desemboca en un **rellano**
+que vuela un metro sobre la biblioteca delante del ascensor (la barandilla de las letras
+#CUCALVIÀ). Hacia el oeste, el sofá rojo bajo el rótulo **BECA** y la ventana de corredera de la
+sala 1, los cubos pintados y, al fondo, la puerta de la **sala 2**. Girando por la columna, el
+pasillo de la **pizarra del Centre Universitari** lleva a la **sala 3** (a la izquierda) y a la
+**oficina** (al fondo); enfrente, la sala de **treball en grup** con su ventana de corredera y el
+extintor. La escalera es de ida y vuelta y sigue hasta la cubierta, con una ventana en cada
+rellano del muro norte del núcleo.
+
 ### Geometría del edificio
 
 El edificio está centrado en el origen: la fachada principal mira hacia **+Z** (de `x = -12`
@@ -137,14 +146,19 @@ tocar las coordenadas de `PATCHES` en el script y volver a ejecutarlo.
 ### La biblioteca, según las fotos de dentro
 
 - Estanterías con **costados de haya y baldas azules**, en batería, más los expositores de
-  novedades y DVD contra el muro este.
+  novedades.
+- El rótulo **BIBLIOTECA** está en el muro este, junto al muro cortina, con la rejilla de
+  carteles debajo, la mesa de lectura de balda alta, el puesto de ordenador y los atriles.
+- En el muro norte de la doble altura cuelgan **cuatro banderolas**: verde, amarilla, magenta y
+  azul, cada una con una foto virada a su color en la cabecera que gotea hacia el blanco.
 - Las salas que dan al vacío tienen **mampara de vidrio** hasta el techo: desde la sala de
-  lectura se ve el mural de las ocas con «DESCOBREIX · ATREVEIX-TE · CREA».
+  lectura se ve la sala 1 —la amarilla, con portátil, tableta y móvil en su tira— y su mural
+  de las ocas, la franja amarilla y la pantalla de proyección sobre las ventanas.
 - **Lámparas industriales** de campana prismática colgadas de la cubierta a alturas
   distintas; bajo el altillo, focos empotrados.
 - Columnas de **hormigón gris visto**, letras de bulto **#CUCALVIÀ** sobre el antepecho,
   mostrador blanco con el logotipo, pared «SEGUEIX-NOS!» con los poliedros, la puerta de la
-  **Sala Infantil** y las banderolas verticales del muro este.
+  **Sala Infantil**.
 
 ### Identidad gráfica
 
@@ -181,7 +195,6 @@ __cuc.jump(4)  // salta a una sección sin transición
 - Afinar el amueblado dentro de la nueva planta: las salas y la sala de lectura han crecido
   bastante y el mobiliario está repartido de forma genérica.
 - Sala infantil y zona de novedades de la biblioteca, que aparecen en el vídeo del recorrido.
-- Confirmar la posición exacta de las puertas y la circulación de la planta primera.
 - Confirmar la orientación real del edificio (`SITE.facadeAzimuth`) y las dimensiones de la
   planta con la vista aérea a escala.
 

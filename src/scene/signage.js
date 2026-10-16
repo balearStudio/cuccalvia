@@ -13,6 +13,7 @@ import * as THREE from 'three';
 export const ROOM_COLORS = {
   oficina: '#5b2d9b',
   informatica: '#c0247b',
+  dispositius: '#f0c21a', // sala 1: amarilla, con portátil, tableta y móvil
   estudi: '#23a9dc',
   grup: '#17a79b'
 };
@@ -231,40 +232,102 @@ export function wallLettering(text, { width = 2048, height = 512, size = 300, co
 
 /** Pizarra del pasillo, con el nombre del centro escrito con tiza. */
 export function chalkboard() {
-  const W = 1024;
+  const W = 1536;
   const H = 640;
   const c = canvas(W, H);
   const ctx = c.getContext('2d');
   const rand = rng(5);
 
-  ctx.fillStyle = '#22262a';
+  ctx.fillStyle = '#1f2326';
   ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 40000; i++) {
-    ctx.fillStyle = `rgba(210,220,225,${rand() * 0.05})`;
-    ctx.fillRect(rand() * W, rand() * H, 2, 2);
+  // Restos de borrado
+  for (let i = 0; i < 260; i++) {
+    ctx.fillStyle = `rgba(210,220,225,${0.015 + rand() * 0.03})`;
+    ctx.beginPath();
+    ctx.ellipse(rand() * W, rand() * H, 30 + rand() * 90, 8 + rand() * 20, rand() * 3, 0, 6.29);
+    ctx.fill();
   }
-  ctx.strokeStyle = 'rgba(230,238,240,0.85)';
-  ctx.lineWidth = 7;
-  ctx.lineCap = 'round';
-  ctx.font = '700 96px Archivo, Helvetica, Arial, sans-serif';
-  ctx.fillStyle = 'rgba(236,242,244,0.9)';
-  ctx.textAlign = 'left';
-  ctx.fillText('CENTRE', 70, 220);
-  ctx.fillText('UNIVERSITARI', 70, 330);
-  ctx.fillText('DE CALVIÀ', 70, 440);
 
-  // Cartelería pegada
-  const posters = [
-    ['#f2f2ee', 700, 90, 250, 180],
-    ['#e8eef4', 700, 300, 250, 200],
-    ['#f6d9e6', 620, 120, 60, 60]
-  ];
-  for (const [fill, x, y, w, h] of posters) {
+  // El nombre del centro, a tiza: trazo fino de letras altas y estrechas
+  ctx.strokeStyle = 'rgba(236,240,242,0.82)';
+  ctx.lineWidth = 3.2;
+  ctx.lineJoin = 'round';
+  ctx.font = '300 150px "Barlow Condensed", Barlow, "Arial Narrow", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.save();
+  ctx.translate(130, 250);
+  ctx.rotate(-0.025);
+  ctx.strokeText('CENTRE  UNIVERSITARI', 0, 0);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(560, 470);
+  ctx.rotate(-0.02);
+  ctx.strokeText('DE  CALVIÀ', 0, 0);
+  ctx.restore();
+
+  // Círculos de color con sus campañas
+  const disc = (x, y, r, fill, label, ink = '#ffffff') => {
     ctx.fillStyle = fill;
-    ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = 'rgba(40,60,90,0.35)';
-    for (let l = 0; l < 6; l++) ctx.fillRect(x + 14, y + 22 + l * 22, w - 28 - rand() * 40, 7);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, 6.29);
+    ctx.fill();
+    ctx.fillStyle = ink;
+    ctx.font = `700 ${Math.round(r * 0.32)}px Barlow, Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x, y + r * 0.12);
+  };
+  disc(110, 95, 82, '#9bc93a', "CREA'T");
+  disc(115, 560, 72, '#3a86d6', 'BRÚIXOLA');
+  disc(1440, 300, 58, '#d8336f', '');
+  disc(1400, 560, 46, '#ef8f2a', '');
+  disc(70, 340, 40, '#f0c21a', '1', '#1f2326');
+
+  // La «U» de bloques de colores
+  const u = ['#2b6cd4', '#d3197e', '#9bc93a', '#f0c21a', '#17a79b', '#5b2d9b'];
+  for (let i = 0; i < 6; i++) {
+    ctx.fillStyle = u[i];
+    ctx.fillRect(720 + (i < 3 ? 0 : 70), 40 + (i % 3) * 30, 26, 26);
   }
+  ctx.fillStyle = u[2];
+  ctx.fillRect(746, 100, 44, 26);
+
+  // Carteles pegados: convocatoria, horarios, QR
+  const poster = (x, y, w, h, head, rot) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = '#f7f6f2';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = head;
+    ctx.fillRect(10, 10, w - 20, 22);
+    ctx.fillStyle = 'rgba(40,60,90,0.45)';
+    for (let l = 0; l < Math.floor((h - 60) / 18); l++) ctx.fillRect(12, 46 + l * 18, (w - 24) * (0.45 + rand() * 0.55), 6);
+    ctx.restore();
+  };
+  poster(150, 380, 170, 220, '#2b6cd4', -0.03);
+  poster(560, 300, 130, 150, '#ef8f2a', 0.02);
+  poster(930, 290, 110, 170, '#3a86d6', -0.01);
+  poster(1250, 80, 120, 160, '#5b2d9b', 0.02);
+  // QR
+  ctx.fillStyle = '#f7f6f2';
+  ctx.fillRect(1050, 70, 90, 110);
+  ctx.fillStyle = '#1b1b1b';
+  for (let i = 0; i < 64; i++) if (rand() > 0.5) ctx.fillRect(1058 + (i % 8) * 9, 78 + Math.floor(i / 8) * 9, 9, 9);
+
+  // Muñequitos recortados
+  for (const [x, y] of [[240, 90], [520, 70], [880, 70], [1180, 420], [1490, 120], [700, 540], [760, 560]]) {
+    ctx.fillStyle = ['#e8b48f', '#c98d6a', '#f0c9a8'][(x / 10) % 3 | 0];
+    ctx.beginPath();
+    ctx.arc(x, y, 16, 0, 6.29);
+    ctx.fill();
+    ctx.fillStyle = ['#3a86d6', '#d8336f', '#2e8b45', '#1f1f1f'][(y / 10) % 4 | 0];
+    ctx.fillRect(x - 13, y + 16, 26, 44);
+    ctx.fillStyle = '#3b2a20';
+    ctx.fillRect(x - 17, y - 18, 34, 10);
+  }
+  // Placa del Ajuntament abajo
+  ctx.fillStyle = '#2f5fae';
+  ctx.fillRect(960, 560, 220, 36);
   return texture(c);
 }
 
@@ -384,35 +447,108 @@ export function logoPanel() {
 }
 
 /** Banderola vertical de la biblioteca, con su rotulación en gotas de color. */
-export function banner(words, { color = '#a7c43a', drip = '#c9de6b' } = {}) {
+export function banner(words, { color = '#a7c43a', drip = '#c9de6b', photo = 'people', title = '' } = {}) {
   const W = 256;
-  const H = 1024;
+  const H = 1152;
   const c = canvas(W, H);
   const ctx = c.getContext('2d');
-  const rand = rng(words.join('').length);
+  const rand = rng(words.join('').length * 13 + color.length);
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
-  // Cabecera que gotea
+
+  // Cabecera: una foto virada al color de la banderola
+  const PH = 380;
   ctx.fillStyle = drip;
-  ctx.fillRect(0, 0, W, 150);
-  for (let x = 10; x < W; x += 34) {
-    const len = 40 + rand() * 120;
-    ctx.fillRect(x, 140, 18, len);
+  ctx.fillRect(0, 0, W, PH);
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = color;
+  if (photo === 'people') {
+    // Caras y hombros de un grupo, en primer plano
+    for (let i = 0; i < 9; i++) {
+      const x = 20 + rand() * (W - 40);
+      const y = 70 + rand() * (PH - 120);
+      const r = 26 + rand() * 22;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, 6.29);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x, y + r * 2.2, r * 1.6, r * 1.1, 0, Math.PI, 0);
+      ctx.fill();
+    }
+  } else if (photo === 'building') {
+    // Una fachada con sus huecos
+    ctx.fillRect(20, 120, W - 40, PH - 120);
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#ffffff';
+    for (let y = 150; y < PH - 30; y += 60) for (let x = 40; x < W - 50; x += 52) ctx.fillRect(x, y, 30, 36);
+  } else {
+    // Lomos de libros en una balda
+    for (let x = 0; x < W; ) {
+      const w = 10 + rand() * 18;
+      ctx.globalAlpha = 0.3 + rand() * 0.5;
+      ctx.fillRect(x, 90 + rand() * 40, w - 2, PH);
+      x += w;
+    }
+  }
+  ctx.globalAlpha = 1;
+  if (title) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 40px Archivo, Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, W / 2, 50);
+  }
+
+  // La pintura gotea desde la foto hacia el blanco
+  ctx.fillStyle = drip;
+  for (let x = 6; x < W; x += 26) {
+    const len = 30 + rand() * 170;
+    const w = 12 + rand() * 10;
+    ctx.fillRect(x, PH - 4, w, len);
     ctx.beginPath();
-    ctx.arc(x + 9, 140 + len, 9, 0, 6.29);
+    ctx.arc(x + w / 2, PH - 4 + len, w / 2, 0, 6.29);
     ctx.fill();
   }
-  // Palabras en vertical
+
+  // Palabras en vertical, leídas de arriba abajo
   ctx.fillStyle = color;
-  ctx.font = '700 66px Barlow, Helvetica, Arial, sans-serif';
-  ctx.textAlign = 'center';
+  ctx.font = '700 58px Barlow, Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'left';
   words.forEach((word, i) => {
     ctx.save();
-    ctx.translate(70 + i * 62, 380 + i * 60);
+    ctx.translate(W / 2 + 34 - i * 58, PH + 140 + i * 70);
     ctx.rotate(Math.PI / 2);
     ctx.fillText(word, 0, 0);
     ctx.restore();
   });
+  return texture(c);
+}
+
+/** Cara de los cubos-taburete: triángulos de dos o tres colores. */
+export function cubeFace(seed) {
+  const S = 256;
+  const c = canvas(S, S);
+  const ctx = c.getContext('2d');
+  const rand = rng(seed);
+  const palette = ['#c0304a', '#2e8b45', '#2b4fa0', '#e08a1e', '#9bc93a', '#d3197e', '#23262b'];
+  const pick = () => palette[(rand() * palette.length) | 0];
+  const corners = [[0, 0], [S, 0], [S, S], [0, S]];
+  const k = (rand() * 4) | 0;
+  const [a, b, cc, d] = [0, 1, 2, 3].map((i) => corners[(i + k) % 4]);
+  const tri = (p, q, r, fill) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(...p);
+    ctx.lineTo(...q);
+    ctx.lineTo(...r);
+    ctx.closePath();
+    ctx.fill();
+  };
+  tri(a, b, d, pick());
+  tri(b, cc, d, pick());
+  if (rand() > 0.5) tri([S / 2, S / 2], b, cc, pick());
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(0, 0, S, S);
   return texture(c);
 }
 

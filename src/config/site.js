@@ -74,12 +74,12 @@ export const SECTIONS = [
     nav: 'Biblioteca',
     kicker: '04 · Interior',
     title: 'Biblioteca',
-    text: 'El vestíbulo se prolonga en la sala de lectura de doble altura: la Biblioteca de Cas Català–Illetes–Bendinat. Estanterías azules sobre carcasa de haya, lámparas de campana colgando de la cubierta, las columnas redondas contra el vidrio y el rótulo BIBLIOTECA al fondo.',
+    text: 'El vestíbulo se prolonga en la sala de lectura de doble altura: la Biblioteca de Cas Català–Illetes–Bendinat. Estanterías azules sobre carcasa de haya, lámparas de campana colgando de la cubierta, las columnas redondas contra el vidrio el rótulo BIBLIOTECA en el muro junto al vidrio y, colgando de toda la altura, las cuatro banderolas de colores del centro.',
     facts: [
       { k: 'Biblioteca', v: 'Cas Català–Illetes–Bendinat' },
       { k: 'Teléfono', v: '971 70 12 18' }
     ],
-    camera: { position: [9.0, 1.7, -1.4], target: [-5.0, 3.6, -11.5] },
+    camera: { position: [-0.5, 2.0, -1.8], target: [10.5, 4.0, -9.0] },
     via: [9.6, 2.4, 4],
     interior: true
   },
@@ -88,14 +88,14 @@ export const SECTIONS = [
     nav: 'Salas de estudio',
     kicker: '05 · Interior',
     title: 'Salas de estudio',
-    text: 'La planta primera es un pasillo con salas a un lado: tres salas de estudio —una de ellas de informática—, la sala de trabajo en grupo y la oficina. Cada puerta lleva su tira de señalética con el color de la sala y los poliedros de la marca del centro. Dentro, terrazo pulido, falso techo registrable, mesas de laminado con sillas azules y puestos individuales con faldón.',
+    text: 'Al subir la escalera, el rellano: el sofá rojo bajo el rótulo BECA, los cubos pintados y, al fondo, la sala 2. Girando por la pizarra del Centre Universitari se llega a la sala 3 y a la oficina; enfrente quedan la sala de treball en grup y la sala 1, la amarilla, con el mural de las ocas. Cada puerta lleva su tira de color con los poliedros de la marca.',
     facts: [
       { k: 'Salas de estudio', v: '1 · 2 · 3' },
       { k: 'También', v: 'Treball en grup' },
       { k: 'Reserva', v: 'cuc.reservio.com' }
     ],
-    camera: { position: [-8.0, 5.95, -12.0], target: [-10.6, 5.3, -1.5] },
-    via: [-6, 5.4, -12.0],
+    camera: { position: [-1.95, 5.75, -14.3], target: [-8.5, 5.4, -12.6] },
+    via: [1.0, 5.3, -8.0],
     interior: true
   },
   {

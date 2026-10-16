@@ -49,6 +49,9 @@ const OUTLINE = [
 /** Hueco de ascensor y escalera: el bloque de tres plantas del catastro. */
 export const CORE = { x0: -1.6, x1: 4.6, z0: -17.7, z1: -12.4 };
 
+/** Altura del centro de las dos ventanas de los rellanos de la escalera, en el muro norte del núcleo. */
+export const STAIR_WINDOWS = [3.35, 7.2];
+
 /**
  * Caja del ascensor: la parte este del núcleo. Sube desde el suelo hasta por
  * encima de la cubierta, con su cara norte enrasada con la fachada.
@@ -372,7 +375,7 @@ function shell(m) {
   // Ventanas cuadradas de las salas, repartidas por tramo
   const windowRuns = {
     1: [], // sureste: da al vacío de la biblioteca, sin huecos altos
-    2: [1.5, 4.2],
+    2: [], // muro de las banderolas de la biblioteca: ciego
     3: [],
     4: [1.6, 3.4],
     5: [1.2, 2.9],
@@ -390,6 +393,8 @@ function shell(m) {
       holes.push(rect(at, 5.05, 1.4, 1.0)); // planta alta
       if (i === 7 || i === 6) holes.push(rect(at, 1.2, 1.4, 2.0)); // planta baja
     }
+    // Muro norte del núcleo: las dos ventanas de los rellanos de la escalera
+    if (i === 4) for (const y of STAIR_WINDOWS) holes.push(rect(4.6 + 0.35 - 0.475, y - 0.425, 0.95, 0.85));
     g.add(perimeterWall(m, a, b, holes));
   }
 

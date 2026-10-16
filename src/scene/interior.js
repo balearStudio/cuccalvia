@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildTextures } from './textures.js';
-import { roofSoffitY, ROOF, TOWER } from './building.js';
+import { roofSoffitY, ROOF, TOWER, STAIR_WINDOWS } from './building.js';
 import {
   doorStrip, wallLettering, chalkboard, noticeboard, ROOM_COLORS,
-  wallLines, followUs, logoPanel, banner, mural, blockLetterCells, europeBoard, becaLetters
+  wallLines, followUs, logoPanel, banner, mural, blockLetterCells, europeBoard, becaLetters, cubeFace
 } from './signage.js';
 
 /**
@@ -15,13 +15,12 @@ import {
  * campana sobre cable largo, el rótulo BIBLIOTECA en la pared y las columnas
  * redondas contra el muro cortina.
  *
- * Planta primera: el pasillo con la pizarra del centro y, a un lado, las salas
- * — tres salas de estudio (una de ellas de informática), la sala de trabajo en
- * grupo y la oficina —, cada una con su tira de señalética de color y los
- * poliedros de la marca en la jamba.
+ * Planta primera, según el croquis y las fotos: el rellano de la escalera con
+ * el sofá rojo bajo el rótulo BECA, el pasillo que lleva a la sala 2 y, girando,
+ * la pizarra del centro, la sala 3 y la oficina al fondo. Cada puerta lleva su
+ * tira de señalética de color con los poliedros de la marca.
  *
- * El reparto de salas sigue siendo provisional: falta el croquis de planta.
- * Cambiar ROOMS es cambiar dónde va cada una.
+ * Cambiar ROOMS es cambiar dónde va cada sala.
  */
 
 const L = -12 + 0.32; // cara interior del muro oeste
@@ -45,6 +44,15 @@ const VOID = { x0: -2.2, x1: R, z0: -12.4, z1: FRONT };
 const CORE = { x0: -1.6, x1: 4.6, z0: -17.7, z1: -12.4 };
 
 /**
+ * El rellano de la planta primera vuela un metro sobre la biblioteca, delante
+ * del ascensor: es la barandilla de las letras #CUCALVIÀ.
+ */
+const EDGE_Z = -11.4;
+
+/** Ojo de la escalera: el forjado se abre sobre los tramos. */
+const WELL = { x0: CORE.x0, x1: TOWER.x0, z0: CORE.z0 + 0.35, z1: CORE.z1 - 0.3 };
+
+/**
  * Reparto de la planta primera, calcado del croquis: las salas se agrupan al
  * oeste y al norte, alrededor del vacío. `door` dice en qué paramento está la
  * puerta y a qué distancia del extremo, que es donde va la tira de señalética.
@@ -53,16 +61,21 @@ const ROOMS = [
   {
     id: 'sala1',
     x0: -7.3, x1: -2.4, z0: -12.0, z1: FRONT,
-    door: { side: 'east', at: -10.6 },
+    // Se entra desde el rellano; la tira va en la hoja, a la derecha
+    door: { side: 'north', at: -3.2, strip: 'leaf', stripSide: -1 },
     glass: ['east'], // da al vacío: se ve desde la biblioteca
+    windows: [{ side: 'north', at: -4.75, w: 1.3, y0: 0.95, y1: 2.0 }], // la de corredera bajo BECA
     mural: 'west',
-    title: "sala §\nd'estudi", number: '1', color: ROOM_COLORS.estudi, icon: 'estudi',
-    kind: 'study', carrels: true
+    stripe: '#efc52f', stripeY: 1.55,
+    screen: true,
+    title: "sala §\nd'estudi", number: '1', color: ROOM_COLORS.dispositius, icon: 'informatica',
+    kind: 'block'
   },
   {
     id: 'sala2',
     x0: L, x1: -7.3, z0: -13.1, z1: FRONT,
-    door: { side: 'north', at: -8.4 },
+    // Al fondo del rellano, frente al sofá
+    door: { side: 'east', at: -12.55, strip: 'leaf' },
     title: "sala §\nd'estudi", number: '2', color: ROOM_COLORS.estudi, icon: 'estudi',
     kind: 'study', carrels: true,
     dado: '#8d8b6e'
@@ -70,24 +83,26 @@ const ROOMS = [
   {
     id: 'sala3',
     x0: L, x1: -8.4, z0: BACK, z1: -13.1,
-    door: { side: 'east', at: -15.4 },
+    door: { side: 'east', at: -17.25 },
     title: "sala §\nd'estudi", number: '3', color: ROOM_COLORS.informatica, icon: 'informatica',
     kind: 'tables'
   },
   {
     id: 'oficina',
     x0: -8.4, x1: -1.7, z0: BACK, z1: -18.0,
-    door: { side: 'south', at: -5.2 },
+    // Al fondo del pasillo de la pizarra
+    door: { side: 'south', at: -7.4 },
     title: 'oficina', color: ROOM_COLORS.oficina, icon: 'oficina',
     kind: 'office'
   },
   {
     id: 'grupal',
     x0: -6.4, x1: -1.7, z0: -17.8, z1: -15.2,
-    door: { side: 'south', at: -4.0 },
+    door: { side: 'south', at: -4.6, strip: 'leaf', stripSide: -1 },
+    // Ventana de corredera de marco blanco junto a la puerta
+    windows: [{ side: 'south', at: -2.85, w: 1.5, y0: 0.95, y1: 2.15 }],
     title: 'treball\nen grup', color: ROOM_COLORS.grup, icon: 'grup',
-    kind: 'group',
-    stripe: '#e8c81e'
+    kind: 'group'
   }
 ];
 
@@ -290,43 +305,38 @@ export function createInterior() {
   ground.receiveShadow = true;
   group.add(ground);
 
-  // El forjado ocupa la banda oeste y el entorno del núcleo; el resto es vacío
-  const slabs = [
-    box(VOID.x0 - L, SLAB_T, FRONT - BACK, (L + VOID.x0) / 2, SLAB_Y - SLAB_T / 2, (BACK + FRONT) / 2),
-    box(CORE.x1 + 1.2 - VOID.x0, SLAB_T, VOID.z0 - BACK, (VOID.x0 + CORE.x1 + 1.2) / 2, SLAB_Y - SLAB_T / 2, (BACK + VOID.z0) / 2)
+  // El forjado ocupa la banda oeste y el entorno del núcleo; el resto es vacío.
+  // Sobre los tramos de escalera queda abierto, y en la caja del ascensor no hay
+  // forjado.
+  const UPPER = [
+    [L, VOID.x0, BACK, FRONT],
+    [VOID.x0, CORE.x0, BACK, EDGE_Z],
+    [WELL.x0, WELL.x1, WELL.z1, EDGE_Z],
+    [TOWER.x0, CORE.x1, TOWER.z1, EDGE_Z]
   ];
-  group.add(mesh(slabs, slabMat));
+  group.add(mesh(
+    UPPER.map(([x0, x1, z0, z1]) => box(x1 - x0, SLAB_T, z1 - z0, (x0 + x1) / 2, SLAB_Y - SLAB_T / 2, (z0 + z1) / 2)),
+    slabMat
+  ));
+  for (const [x0, x1, z0, z1] of UPPER) {
+    const w = x1 - x0;
+    const d = z1 - z0;
+    const floorMat = terrazzo.clone();
+    floorMat.map = tiled(t.terrazzo, w, d, 1.2);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set((x0 + x1) / 2, SLAB_Y + 0.02, (z0 + z1) / 2);
+    floor.receiveShadow = true;
+    group.add(floor);
 
-  const upperMat = terrazzo.clone();
-  upperMat.map = tiled(t.terrazzo, VOID.x0 - L, FRONT - BACK, 1.2);
-  const upperWest = new THREE.Mesh(new THREE.PlaneGeometry(VOID.x0 - L, FRONT - BACK), upperMat);
-  upperWest.rotation.x = -Math.PI / 2;
-  upperWest.position.set((L + VOID.x0) / 2, SLAB_Y + 0.02, (BACK + FRONT) / 2);
-  upperWest.receiveShadow = true;
-  group.add(upperWest);
-
-  const upperNorth = new THREE.Mesh(
-    new THREE.PlaneGeometry(CORE.x1 + 1.2 - VOID.x0, VOID.z0 - BACK),
-    upperMat
-  );
-  upperNorth.rotation.x = -Math.PI / 2;
-  upperNorth.position.set((VOID.x0 + CORE.x1 + 1.2) / 2, SLAB_Y + 0.02, (BACK + VOID.z0) / 2);
-  upperNorth.receiveShadow = true;
-  group.add(upperNorth);
-
-  // Falso techo sobre la parte construida de la planta alta
-  ceilingMat.map = tiled(t.ceiling, VOID.x0 - L, FRONT - BACK, 1.2);
-  const droppedWest = new THREE.Mesh(new THREE.PlaneGeometry(VOID.x0 - L, FRONT - BACK), ceilingMat);
-  droppedWest.rotation.x = Math.PI / 2;
-  droppedWest.position.set((L + VOID.x0) / 2, CEIL_Y, (BACK + FRONT) / 2);
-  group.add(droppedWest);
-  const droppedNorth = new THREE.Mesh(
-    new THREE.PlaneGeometry(CORE.x1 + 1.2 - VOID.x0, VOID.z0 - BACK),
-    ceilingMat
-  );
-  droppedNorth.rotation.x = Math.PI / 2;
-  droppedNorth.position.set((VOID.x0 + CORE.x1 + 1.2) / 2, CEIL_Y, (BACK + VOID.z0) / 2);
-  group.add(droppedNorth);
+    // Falso techo registrable sobre la parte construida de la planta alta
+    const ceilMat = ceilingMat.clone();
+    ceilMat.map = tiled(t.ceiling, w, d, 1.2);
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ceilMat);
+    ceiling.rotation.x = Math.PI / 2;
+    ceiling.position.set((x0 + x1) / 2, CEIL_Y, (z0 + z1) / 2);
+    group.add(ceiling);
+  }
 
   // Sobre el vacío la cubierta queda vista
   const ceilGeo = new THREE.PlaneGeometry(VOID.x1 - VOID.x0, VOID.z1 - VOID.z0, 1, 1);
@@ -396,6 +406,53 @@ export function createInterior() {
   const doors = new THREE.Group();
   const strips = [];
 
+  // Paramento con huecos: puertas hasta el suelo y ventanas con antepecho.
+  // Entre hueco y hueco, el muro (o la mampara) corre de suelo a techo.
+  const openWall = (x0, z0, x1, z1, openings, fn) => {
+    const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0);
+    const fixed = alongX ? z0 : x0;
+    const a0 = alongX ? Math.min(x0, x1) : Math.min(z0, z1);
+    const a1 = alongX ? Math.max(x0, x1) : Math.max(z0, z1);
+    const seg = (p, q) => {
+      if (q - p < 0.03) return;
+      if (alongX) fn(p, fixed, q, fixed);
+      else fn(fixed, p, fixed, q);
+    };
+    const piece = (len, h, y, at) =>
+      partitions.push(alongX ? box(len, h, 0.13, at, SLAB_Y + y + h / 2, fixed) : box(0.13, h, len, fixed, SLAB_Y + y + h / 2, at));
+    let cur = a0;
+    for (const o of [...openings].sort((p, q) => p.at - q.at)) {
+      seg(cur, o.at - o.w / 2);
+      cur = o.at + o.w / 2;
+      piece(o.w + 0.02, H - o.y1, o.y1, o.at); // dintel
+      if (o.y0 > 0) piece(o.w + 0.02, o.y0, 0, o.at); // antepecho
+    }
+    seg(cur, a1);
+  };
+
+  // Ventana de corredera: marco blanco y dos hojas solapadas
+  const sliders = [];
+  const sliderGlass = [];
+  const addSlider = (o, alongX, fixed, inward) => {
+    const h = o.y1 - o.y0;
+    const y = SLAB_Y + o.y0 + h / 2;
+    const frame = (len, hh, at, yy, off = 0) =>
+      sliders.push(alongX ? box(len, hh, 0.15, at, yy, fixed + off) : box(0.15, hh, len, fixed + off, yy, at));
+    frame(o.w, 0.06, o.at, SLAB_Y + o.y1 - 0.03);
+    frame(o.w, 0.08, o.at, SLAB_Y + o.y0 + 0.04);
+    frame(0.06, h, o.at - o.w / 2 + 0.03, y);
+    frame(0.06, h, o.at + o.w / 2 - 0.03, y);
+    for (const [k, off] of [[-1, -0.025], [1, 0.025]]) {
+      const at = o.at + k * o.w / 4;
+      frame(0.05, h - 0.12, at + k * (o.w / 4 - 0.04), y, off * inward);
+      frame(0.05, h - 0.12, at - k * (o.w / 4 - 0.04), y, off * inward);
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(o.w / 2 - 0.08, h - 0.14), partitionGlass);
+      pane.position.set(alongX ? at : fixed + off * inward, y, alongX ? fixed + off * inward : at);
+      if (!alongX) pane.rotation.y = Math.PI / 2;
+      sliderGlass.push(pane);
+    }
+  };
+
   for (const room of ROOMS) {
     // Cada paramento de la sala, con el lado al que da
     const sides = {
@@ -404,40 +461,48 @@ export function createInterior() {
       west: [room.x0, room.z0, room.x0, room.z1],
       east: [room.x1, room.z0, room.x1, room.z1]
     };
+    // Hacia dentro de la sala, para colgar en cada paramento lo que va dentro
+    const inwardOf = { south: [0, -1], north: [0, 1], west: [1, 0], east: [-1, 0] };
+    const perimeter = {
+      south: Math.abs(room.z1 - FRONT) < 0.2,
+      west: Math.abs(room.x0 - L) < 0.2,
+      north: Math.abs(room.z0 - BACK) < 0.2,
+      east: false
+    };
 
     for (const [name, [x0, z0, x1, z1]] of Object.entries(sides)) {
       const wallFn = room.glass?.includes(name) ? addScreen : addWall;
       // La fachada la levanta building.js; aquí solo la tabiquería interior
-      if (name === 'south' && Math.abs(z1 - FRONT) < 0.2) continue;
-      if (name === 'west' && Math.abs(x0 - L) < 0.2) continue;
-      if (name === 'north' && Math.abs(z0 - BACK) < 0.2) continue;
-
-      if (room.door.side === name) {
-        // El muro se parte para dejar el hueco de la puerta
-        const along = name === 'north' || name === 'south' ? 'x' : 'z';
-        const at = room.door.at;
-        if (along === 'x') {
-          wallFn(x0, z0, at - DOOR_W / 2, z1);
-          wallFn(at + DOOR_W / 2, z0, x1, z1);
-          partitions.push(box(DOOR_W + 0.1, H - DOOR_H, 0.13, at, SLAB_Y + DOOR_H + (H - DOOR_H) / 2, z0));
-        } else {
-          wallFn(x0, z0, x1, at - DOOR_W / 2);
-          wallFn(x0, at + DOOR_W / 2, x1, z1);
-          partitions.push(box(0.13, H - DOOR_H, DOOR_W + 0.1, x0, SLAB_Y + DOOR_H + (H - DOOR_H) / 2, at));
-        }
-      } else {
-        wallFn(x0, z0, x1, z1);
+      if (perimeter[name]) continue;
+      const openings = [];
+      if (room.door.side === name) openings.push({ at: room.door.at, w: DOOR_W, y0: 0, y1: DOOR_H });
+      for (const win of room.windows ?? []) {
+        if (win.side !== name) continue;
+        openings.push(win);
+        const alongX = name === 'north' || name === 'south';
+        addSlider(win, alongX, alongX ? z0 : x0, alongX ? inwardOf[name][1] : inwardOf[name][0]);
       }
+      openWall(x0, z0, x1, z1, openings, wallFn);
     }
 
     // Mural de las ocas, visible desde la biblioteca a través de la mampara
     if (room.mural === 'west') {
-      const m = panel(mural(), Math.min(room.z1 - room.z0 - 1, 6.4), 2.0, room.x0 + 0.09, SLAB_Y + 1.6, (room.z0 + room.z1) / 2);
+      const len = Math.min(room.z1 - room.z0 - 1, 6.4);
+      const m = panel(mural(), len, 2.0, room.x0 + 0.082, SLAB_Y + 1.6, room.z1 - 0.6 - len / 2);
       m.rotation.y = Math.PI / 2;
       group.add(m);
     }
 
-    // Hoja de la puerta, su ventanuco y la tira de señalética en la jamba
+    // Pantalla de proyección enrollable sobre las ventanas de la fachada
+    if (room.screen) {
+      const cx = (room.x0 + room.x1) / 2;
+      group.add(panel(wallLettering('', { width: 8, height: 8 }), 2.6, 1.15, cx, SLAB_Y + 2.05, FRONT - 0.42, Math.PI, {
+        material: { color: 0xf8f8f6, map: null, side: THREE.DoubleSide }
+      }));
+      group.add(mesh([box(2.8, 0.1, 0.1, cx, SLAB_Y + 2.66, FRONT - 0.42)], doorMat, false));
+    }
+
+    // Hoja de la puerta, su ventanuco y la tira de señalética
     const horizontal = room.door.side === 'north' || room.door.side === 'south';
     const [dx, dz] = horizontal
       ? [room.door.at, room.door.side === 'north' ? room.z0 : room.z1]
@@ -446,19 +511,21 @@ export function createInterior() {
     const out = horizontal
       ? [0, room.door.side === 'north' ? -1 : 1]
       : [room.door.side === 'west' ? -1 : 1, 0];
-    const rot = horizontal ? 0 : Math.PI / 2;
+    const rot = horizontal ? (out[1] > 0 ? 0 : Math.PI) : (out[0] > 0 ? Math.PI / 2 : -Math.PI / 2);
 
     const leaf = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W - 0.04, DOOR_H - 0.03, 0.045), doorMat);
     leaf.position.set(dx + out[0] * 0.02, SLAB_Y + (DOOR_H - 0.03) / 2, dz + out[1] * 0.02);
     leaf.rotation.y = rot;
     leaf.castShadow = true;
-    const portFrame = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.52, 0.06), doorMat);
-    portFrame.position.set(dx + out[0] * 0.02, SLAB_Y + 1.62, dz + out[1] * 0.02);
+    const portFrame = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.42, 0.06), doorMat);
+    portFrame.position.set(dx + out[0] * 0.02, SLAB_Y + 1.65, dz + out[1] * 0.02);
     portFrame.rotation.y = rot;
-    const port = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.42), glassPane);
-    port.position.set(dx + out[0] * 0.05, SLAB_Y + 1.62, dz + out[1] * 0.05);
+    const port = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.32), glassPane);
+    port.position.set(dx + out[0] * 0.05, SLAB_Y + 1.65, dz + out[1] * 0.05);
     port.rotation.y = rot;
-    doors.add(leaf, portFrame, port);
+    // Las hojas que llevan la tira pegada no tienen ventanuco
+    doors.add(leaf);
+    if (room.door.strip !== 'leaf') doors.add(portFrame, port);
 
     const strip = doorStrip({
       title: room.title,
@@ -467,33 +534,38 @@ export function createInterior() {
       iconKind: room.icon,
       seed: room.id.length * 7 + Math.round(room.x0 * 3)
     });
-    const sx = horizontal ? dx + DOOR_W / 2 + 0.16 : dx + out[0] * 0.075;
-    const sz = horizontal ? dz + out[1] * 0.075 : dz + DOOR_W / 2 + 0.16;
-    const stripPanel = panel(strip, 0.24, 1.9, sx, SLAB_Y + 1.15, sz);
+    // En la jamba, junto al hueco, o pegada a la propia hoja
+    const side = room.door.stripSide ?? 1;
+    const onLeaf = room.door.strip === 'leaf';
+    const offAlong = onLeaf ? side * (DOOR_W / 2 - 0.2) : side * (DOOR_W / 2 + 0.16);
+    const offOut = onLeaf ? 0.048 : 0.075;
+    const sx = horizontal ? dx + offAlong : dx + out[0] * offOut;
+    const sz = horizontal ? dz + out[1] * offOut : dz + offAlong;
+    const stripPanel = panel(strip, onLeaf ? 0.22 : 0.24, onLeaf ? 1.75 : 1.9, sx, SLAB_Y + (onLeaf ? 1.0 : 1.15), sz);
     stripPanel.rotation.y = rot;
     strips.push(stripPanel);
 
-    // Zócalo o franja de color, y rodapié
-    const bandTargets = Object.values(sides);
-    if (room.dado) {
-      const geos = dados.get(room.dado) || [];
-      for (const [x0, z0, x1, z1] of bandTargets) {
-        const w = Math.abs(x1 - x0) || 0.02;
-        const d = Math.abs(z1 - z0) || 0.02;
-        geos.push(box(Math.max(w - 0.02, 0.02), 1.0, Math.max(d - 0.02, 0.02), (x0 + x1) / 2, SLAB_Y + 0.6, (z0 + z1) / 2));
+    // Zócalo o franja de color por dentro de la sala, y rodapié
+    for (const [name, [x0, z0, x1, z1]] of Object.entries(sides)) {
+      if (room.glass?.includes(name)) continue;
+      const [ix, iz] = inwardOf[name];
+      const off = perimeter[name] ? (name === 'south' ? 0.27 : 0.045) : 0.072;
+      const w = Math.abs(x1 - x0) || 0.012;
+      const d = Math.abs(z1 - z0) || 0.012;
+      const cx = (x0 + x1) / 2 + ix * off;
+      const cz = (z0 + z1) / 2 + iz * off;
+      if (room.dado) {
+        const geos = dados.get(room.dado) || [];
+        geos.push(box(w, 1.0, d, cx, SLAB_Y + 0.6, cz));
+        dados.set(room.dado, geos);
       }
-      dados.set(room.dado, geos);
-    }
-    if (room.stripe) {
-      const geos = stripes.get(room.stripe) || [];
-      for (const [x0, z0, x1, z1] of bandTargets) {
-        const w = Math.abs(x1 - x0) || 0.03;
-        const d = Math.abs(z1 - z0) || 0.03;
-        geos.push(box(Math.max(w - 0.02, 0.03), 0.1, Math.max(d - 0.02, 0.03), (x0 + x1) / 2, SLAB_Y + 1.12, (z0 + z1) / 2));
+      if (room.stripe) {
+        const geos = stripes.get(room.stripe) || [];
+        geos.push(box(w, 0.09, d, cx, SLAB_Y + (room.stripeY ?? 1.12), cz));
+        stripes.set(room.stripe, geos);
       }
-      stripes.set(room.stripe, geos);
     }
-    for (const [x0, z0, x1, z1] of bandTargets) addSkirting(x0, z0, x1, z1, SLAB_Y + 0.02);
+    for (const [x0, z0, x1, z1] of Object.values(sides)) addSkirting(x0, z0, x1, z1, SLAB_Y + 0.02);
   }
 
   // El núcleo: la caja del ascensor la levanta building.js; aquí solo se cierra
@@ -506,9 +578,23 @@ export function createInterior() {
   strips.forEach((s) => group.add(s));
   for (const [color, geos] of dados) group.add(mesh(geos, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }), false));
   for (const [color, geos] of stripes) group.add(mesh(geos, new THREE.MeshStandardMaterial({ color, roughness: 0.85 }), false));
+  group.add(mesh(sliders, doorMat, false));
+  sliderGlass.forEach((p) => group.add(p));
 
-  // Pizarra del pasillo con el nombre del centro
-  group.add(panel(chalkboard(), 3.0, 1.9, (CORE.x0 + CORE.x1) / 2, SLAB_Y + 1.45, CORE.z1 + 0.09, 0));
+  // Pizarra del pasillo con el nombre del centro, en el muro de la sala 3 que
+  // lleva hasta la oficina
+  group.add(panel(chalkboard(), 3.2, 1.34, -8.4 + 0.075, SLAB_Y + 1.5, -14.6, Math.PI / 2));
+  group.add(mesh([box(0.025, 1.4, 3.26, -8.4 + 0.06, SLAB_Y + 1.5, -14.6)], steel, false));
+
+  // Extintor y su señal en el muro de la sala de grupo, frente a la pizarra
+  const red = new THREE.MeshStandardMaterial({ color: 0xc9221e, roughness: 0.45, metalness: 0.2 });
+  group.add(mesh([
+    new THREE.CylinderGeometry(0.085, 0.085, 0.5, 14).translate(-6.4 - 0.16, SLAB_Y + 0.62, -17.2),
+    new THREE.CylinderGeometry(0.03, 0.03, 0.08, 8).translate(-6.4 - 0.16, SLAB_Y + 0.91, -17.2)
+  ], red));
+  group.add(panel(wallLettering('', { width: 8, height: 8 }), 0.3, 0.3, -6.4 - 0.072, SLAB_Y + 1.75, -17.2, -Math.PI / 2, {
+    material: { color: 0xd8261f, map: null }
+  }));
 
   /* ---------------- Mobiliario de las salas ---------------- */
   const allTops = [];
@@ -560,6 +646,29 @@ export function createInterior() {
       }
     }
 
+    if (room.kind === 'block') {
+      // Mesas juntas en un bloque largo, sillas alrededor, y una fila de mesas
+      // contra la fachada, bajo la pantalla
+      for (const z of [-7.4, -6.0, -4.6]) {
+        const d = deskGeometries(cx, z, 1.4, 1.38);
+        tops.push(...d.top);
+        legs.push(...d.legs);
+        for (const dz of [-0.35, 0.35]) {
+          addChair(cx - 0.98, z + dz, Math.PI / 2);
+          addChair(cx + 0.98, z + dz, -Math.PI / 2);
+        }
+      }
+      addChair(cx, -8.45, 0);
+      addChair(cx, -3.55, Math.PI);
+      for (const x of [-6.4, -4.95, -3.5]) {
+        const d = deskGeometries(x, -0.95, 1.4, 0.7);
+        tops.push(...d.top);
+        legs.push(...d.legs);
+        addChair(x - 0.3, -1.68, 0);
+        addChair(x + 0.3, -1.68, 0);
+      }
+    }
+
     if (room.kind === 'tables') {
       // Mesas redondas junto a la ventana y puestos individuales al fondo
       for (const [dx, dz] of [[-width * 0.22, -1.9], [width * 0.22, -1.9]]) {
@@ -587,11 +696,11 @@ export function createInterior() {
         const a = (i / 4) * Math.PI * 2 + 0.4;
         addChair(cx + Math.sin(a) * 0.95, cz + Math.cos(a) * 0.95, a + Math.PI);
       }
-      const board = panel(wallLettering('', { width: 8, height: 8 }), 1.7, 1.0, cx, SLAB_Y + 1.55, BACK + 0.09, 0, {
+      const board = panel(wallLettering('', { width: 8, height: 8 }), 1.7, 1.0, cx, SLAB_Y + 1.55, room.z0 + 0.1, 0, {
         material: { color: 0x2f4a3a, map: null }
       });
       group.add(board);
-      group.add(mesh([box(1.84, 1.14, 0.05, cx, SLAB_Y + 1.55, room.z0 + 0.06)], beech, false));
+      group.add(mesh([box(1.84, 1.14, 0.05, cx, SLAB_Y + 1.55, room.z0 + 0.075)], tubular, false));
     }
 
     if (room.kind === 'office') {
@@ -627,7 +736,7 @@ export function createInterior() {
   const grilles = [];
   for (let x = L + 1.9; x < CORE.x1; x += 3.4) {
     for (let z = BACK + 1.9; z < FRONT - 1.5; z += 3.0) {
-      if (x > VOID.x0 && z > VOID.z0) continue; // aquí está el vacío
+      if (x > VOID.x0) continue; // el vacío y el núcleo
       panels.push(box(1.18, 0.02, 0.58, x, CEIL_Y - 0.03, z));
       grilles.push(box(1.26, 0.05, 0.04, x, CEIL_Y - 0.025, z - 0.31));
       grilles.push(box(1.26, 0.05, 0.04, x, CEIL_Y - 0.025, z + 0.31));
@@ -639,49 +748,58 @@ export function createInterior() {
   group.add(mesh(panels, lampMat, false));
   group.add(mesh(grilles, tubular, false));
 
-  /* ---------------- Rincón de espera de la planta alta ---------------- */
+  /* ---------------- Rellano de la planta alta ---------------- */
+  // Sofá rojo contra el muro de la sala 1, bajo la ventana de corredera y BECA
   const sofa = new THREE.Group();
   const sofaMat = new THREE.MeshStandardMaterial({ color: 0xc4534a, roughness: 0.95 });
   sofa.add(mesh([
-    box(2.1, 0.42, 0.82, 0, 0.34, 0),
-    box(2.1, 0.5, 0.2, 0, 0.68, -0.31),
-    box(0.18, 0.34, 0.82, -0.96, 0.62, 0),
-    box(0.18, 0.34, 0.82, 0.96, 0.62, 0)
+    box(2.0, 0.42, 0.82, 0, 0.3, 0),
+    box(2.0, 0.5, 0.2, 0, 0.66, -0.31),
+    box(0.18, 0.3, 0.82, -0.91, 0.6, 0),
+    box(0.18, 0.3, 0.82, 0.91, 0.6, 0)
   ], sofaMat));
-  // En el rellano que queda entre la sala 3, la sala 2 y la de grupo
-  sofa.position.set(-5.2, SLAB_Y, -14.6);
-  sofa.rotation.y = 0;
+  sofa.position.set(-4.85, SLAB_Y, -12.0 - 0.07 - 0.45);
+  sofa.rotation.y = Math.PI;
   group.add(sofa);
 
-  // Cubos-taburete pintados con la gráfica del centro
-  const cubeColors = [0x9b1b30, 0x1f3f8f, 0x1a7a4f, 0xc9531c];
-  for (let i = 0; i < 3; i++) {
-    const c = new THREE.Mesh(
-      new THREE.BoxGeometry(0.44, 0.44, 0.44),
-      new THREE.MeshStandardMaterial({ color: cubeColors[i % cubeColors.length], roughness: 0.7 })
-    );
-    c.position.set(-2.4, SLAB_Y + 0.22 + i * 0.45, -13.7);
-    c.rotation.y = rand() * 0.4;
+  // Cubos-taburete pintados a triángulos, y cajas de cartón encima
+  const cardboard = new THREE.MeshStandardMaterial({ color: 0xb48a58, roughness: 0.92 });
+  const cube = (x, y, z, size, seed, rotY) => {
+    const mats = [0, 1, 2, 3, 4, 5].map((i) => new THREE.MeshStandardMaterial({ map: cubeFace(seed * 6 + i), roughness: 0.75 }));
+    const c = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), mats);
+    c.position.set(x, SLAB_Y + y + size / 2, z);
+    c.rotation.y = rotY;
     c.castShadow = true;
     group.add(c);
-  }
+  };
+  cube(-6.55, 0, -12.36, 0.5, 1, 0.1);
+  cube(-6.53, 0.5, -12.38, 0.48, 2, -0.15);
+  cube(-6.1, 0, -13.0, 0.46, 3, 0.3);
+  cube(-2.05, 0, -14.4, 0.5, 5, 0.12);
+  const boxes = [
+    box(0.5, 0.42, 0.42, -2.05, SLAB_Y + 0.5 + 0.21, -14.4),
+    box(0.48, 0.4, 0.4, -3.0, SLAB_Y + 0.2, -0.45 - 1.8),
+    box(0.44, 0.38, 0.4, -3.0, SLAB_Y + 0.4 + 0.19, -0.45 - 1.8),
+    box(0.5, 0.36, 0.44, -3.02, SLAB_Y + 0.78 + 0.18, -0.45 - 1.8)
+  ];
+  group.add(mesh(boxes, cardboard));
 
   // «Calvià in Europe» en el paramento de la sala de grupo que da a la escalera
   const europe = panel(europeBoard(), 2.0, 1.95, -1.7 + 0.09, SLAB_Y + 1.55, -16.4, Math.PI / 2);
   group.add(europe);
   group.add(mesh([box(0.05, 2.07, 2.12, -1.7 + 0.06, SLAB_Y + 1.55, -16.4)], beech, false));
-  // BECA, sobre el muro de la sala 1 que cierra el rellano
-  const beca = panel(becaLetters(), 2.2, 1.1, -5.0, SLAB_Y + 1.9, -12.0 - 0.08, Math.PI, {
+  // BECA, sobre la ventana de corredera de la sala 1
+  const beca = panel(becaLetters(), 1.7, 0.85, -4.85, SLAB_Y + 2.38, -12.0 - 0.072, Math.PI, {
     transparent: true, material: { transparent: true }
   });
   group.add(beca);
 
   // Estrellas de papel colgadas
-  for (const [x, z] of [[-4.0, -14.0], [L + 3.2, -18.0]]) {
-    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 1), new THREE.MeshStandardMaterial({
+  for (const [x, z] of [[-4.6, -13.7], [L + 3.2, -18.0], [-4.2, -9.0]]) {
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 1), new THREE.MeshStandardMaterial({
       color: 0xfbfaf6, roughness: 0.9, flatShading: true
     }));
-    star.position.set(x, CEIL_Y - 0.55, z);
+    star.position.set(x, CEIL_Y - 0.5, z);
     star.scale.set(1, 1.25, 1);
     group.add(star);
   }
@@ -691,55 +809,85 @@ export function createInterior() {
   /* ================================================================ */
 
   // Columnas de hormigón gris visto: de doble altura contra el muro cortina y
-  // en el vacío, y más bajas sosteniendo el borde del altillo
+  // en el vacío; las del borde del altillo siguen hasta el techo de la planta
+  // alta, con su anillo de rodapié de madera, y hay otra en el rellano
   const concreteGrey = new THREE.MeshStandardMaterial({ color: 0xb9b8b2, roughness: 0.88 });
   const columns = [];
+  const columnFoot = [];
   for (const [x, z] of [[-1.0, -1.1], [2.6, -1.1], [6.2, -1.1], [9.8, -1.1], [4.2, -7.0]]) {
     const h = roofSoffitY(x, z) - 0.3;
     columns.push(new THREE.CylinderGeometry(0.24, 0.24, h, 20).translate(x, h / 2, z));
   }
   for (const z of [-3.2, -7.6, -11.6]) {
-    columns.push(new THREE.CylinderGeometry(0.2, 0.2, SLAB_Y - SLAB_T, 18).translate(VOID.x0 - 0.35, (SLAB_Y - SLAB_T) / 2, z));
+    columns.push(new THREE.CylinderGeometry(0.2, 0.2, CEIL_Y, 18).translate(VOID.x0 - 0.35, CEIL_Y / 2, z));
+    columnFoot.push(new THREE.CylinderGeometry(0.215, 0.215, 0.1, 18).translate(VOID.x0 - 0.35, SLAB_Y + 0.07, z));
+  }
+  for (const [x, z] of [[-7.9, -13.35], [-2.55, -13.2]]) {
+    columns.push(new THREE.CylinderGeometry(0.2, 0.2, CEIL_Y - SLAB_Y, 18).translate(x, (SLAB_Y + CEIL_Y) / 2, z));
+    columnFoot.push(new THREE.CylinderGeometry(0.215, 0.215, 0.1, 18).translate(x, SLAB_Y + 0.07, z));
   }
   group.add(mesh(columns, concreteGrey));
+  group.add(mesh(columnFoot, skirtingMat, false));
 
   // Canto del altillo: la banda blanca que corre bajo las mamparas
   group.add(mesh([
     box(0.3, 0.85, FRONT - VOID.z0, VOID.x0 - 0.1, SLAB_Y - 0.25, (VOID.z0 + FRONT) / 2),
-    box(CORE.x1 + 1.2 - VOID.x0, 0.85, 0.3, (VOID.x0 + CORE.x1 + 1.2) / 2, SLAB_Y - 0.25, VOID.z0 - 0.1)
+    box(CORE.x1 - VOID.x0, 0.85, 0.3, (VOID.x0 + CORE.x1) / 2, SLAB_Y - 0.25, EDGE_Z - 0.1),
+    box(0.3, 0.85, EDGE_Z - VOID.z0 + 0.35, CORE.x1 - 0.1, SLAB_Y - 0.25, (EDGE_Z + VOID.z0) / 2 - 0.1)
   ], whiteConcrete));
 
-  // Escalera de dos tramos en el hueco oeste del núcleo, junto al ascensor:
-  // peldaño de terrazo con mamperlán de madera, como en las fotos
+  // Escalera de ida y vuelta en el hueco oeste del núcleo, junto al ascensor:
+  // peldaño de terrazo con mamperlán de madera y el rodapié siguiendo los
+  // peldaños, como en las fotos. Sube de la planta baja a la primera y sigue
+  // hasta la cubierta, donde sale a la caja del ascensor.
   const stairs = [];
   const nosings = [];
   const RISERS = 8;
-  const rise = SLAB_Y / (RISERS * 2);
   const tread = 0.28;
-  const zStart = CORE.z1 - 0.3;
-  const flightA = CORE.x0 + 0.6; // sube hacia el norte
-  const flightB = TOWER.x0 - 0.6; // baja hacia el sur hasta la planta alta
-  for (let i = 0; i < RISERS; i++) {
-    const y = rise * (i + 1);
-    const z = zStart - tread * (i + 0.5);
-    stairs.push(box(1.1, y, tread, flightA, y / 2, z));
-    nosings.push(box(1.1, 0.05, 0.03, flightA, y - 0.02, z + tread / 2));
-  }
-  const landingZ = zStart - tread * RISERS - 0.75;
-  stairs.push(box(TOWER.x0 - CORE.x0, 0.2, 1.5, (CORE.x0 + TOWER.x0) / 2, SLAB_Y / 2 - 0.1, landingZ));
-  for (let i = 0; i < RISERS; i++) {
-    const y = SLAB_Y / 2 + rise * (i + 1);
-    const z = zStart - tread * (RISERS - i - 0.5);
-    stairs.push(box(1.1, 0.24, tread, flightB, y - 0.12, z));
-    nosings.push(box(1.1, 0.05, 0.03, flightB, y - 0.02, z - tread / 2));
+  const zStart = WELL.z1;
+  const zTop = zStart - tread * RISERS; // arranque del rellano intermedio
+  const flightA = WELL.x0 + 0.6; // sube hacia el norte
+  const flightB = WELL.x1 - 0.6; // y vuelve hacia el sur
+  const eye = (flightA + flightB) / 2;
+  const ROOF_LANDING = 8.45;
+  const runs = [
+    { from: 0, to: SLAB_Y },
+    { from: SLAB_Y, to: ROOF_LANDING }
+  ];
+  const flightRails = [];
+  for (const { from, to } of runs) {
+    const rise = (to - from) / (RISERS * 2);
+    const mid = from + rise * RISERS;
+    for (let i = 0; i < RISERS; i++) {
+      const y = from + rise * (i + 1);
+      const z = zStart - tread * (i + 0.5);
+      // El primer tramo de la planta baja es macizo; los demás, losa de peldaños
+      stairs.push(from === 0 ? box(1.1, y, tread, flightA, y / 2, z) : box(1.1, 0.24, tread, flightA, y - 0.12, z));
+      nosings.push(box(1.1, 0.05, 0.03, flightA, y - 0.02, z + tread / 2));
+    }
+    // Rellano intermedio de muro a muro, bajo la ventana
+    stairs.push(box(WELL.x1 - WELL.x0, 0.2, zTop - WELL.z0, (WELL.x0 + WELL.x1) / 2, mid - 0.1, (zTop + WELL.z0) / 2));
+    for (let i = 0; i < RISERS; i++) {
+      const y = mid + rise * (i + 1);
+      const z = zStart - tread * (RISERS - i - 0.5);
+      stairs.push(box(1.1, 0.24, tread, flightB, y - 0.12, z));
+      nosings.push(box(1.1, 0.05, 0.03, flightB, y - 0.02, z - tread / 2));
+      // Rodapié escalonado contra la caja del ascensor
+      skirting.push(box(0.02, 0.1, tread, WELL.x1 - 0.01, y + 0.05, z));
+    }
+    skirting.push(box(WELL.x1 - WELL.x0, 0.1, 0.02, (WELL.x0 + WELL.x1) / 2, mid + 0.05, WELL.z0 + 0.01));
+    flightRails.push([eye - 0.03, zStart, eye - 0.03, zTop, from + 0.25, mid + 0.25]);
+    flightRails.push([eye + 0.03, zTop, eye + 0.03, zStart, mid + 0.25, to + 0.25]);
   }
   const stairMat = terrazzo.clone();
   stairMat.map = tiled(t.terrazzo, 1, 1, 1.2);
   group.add(mesh(stairs, stairMat));
   group.add(mesh(nosings, skirtingMat, false));
 
+  // Barandilla de pletina negra: cruces de San Andrés con un disco en cada
+  // cruce, como todas las del centro. `rise` la inclina para los tramos.
   const rails = [];
-  const addSteelRail = (x1, z1, x2, z2, y) => {
+  const addSteelRail = (x1, z1, x2, z2, y, rise = 0) => {
     const len = Math.hypot(x2 - x1, z2 - z1);
     const ang = Math.atan2(z2 - z1, x2 - x1);
     const cx = (x1 + x2) / 2;
@@ -752,7 +900,6 @@ export function createInterior() {
       const px = -len / 2 + (len / posts) * i;
       local.push(box(0.05, 1.04, 0.05, px, 0.52, 0));
     }
-    // Cruces
     for (let i = 0; i < posts; i++) {
       const a = -len / 2 + (len / posts) * i;
       const b = a + len / posts;
@@ -763,29 +910,48 @@ export function createInterior() {
         bar.translate((a + b) / 2, 0.54, 0);
         local.push(bar);
       }
+      local.push(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 12).rotateX(Math.PI / 2).translate((a + b) / 2, 0.54, 0));
     }
-    // Disco en cada cruce, como en todas las barandillas del centro
-    for (let i = 0; i < posts; i++) {
-      const mid = -len / 2 + (len / posts) * (i + 0.5);
-      local.push(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 12).rotateX(Math.PI / 2).translate(mid, 0.54, 0));
+    if (rise) {
+      const shear = new THREE.Matrix4().set(1, 0, 0, 0, rise / len, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+      local.forEach((g) => g.applyMatrix4(shear));
     }
     place(local, cx, cz, -ang, y);
     rails.push(...local);
   };
-  addSteelRail(VOID.x0 + 0.05, VOID.z0 + 0.05, CORE.x1 + 1.1, VOID.z0 + 0.05, SLAB_Y);
-  // Ojo de la escalera: barandilla entre los dos tramos y alrededor en la planta alta
-  addSteelRail((flightA + flightB) / 2, zStart, (flightA + flightB) / 2, landingZ + 0.75, SLAB_Y / 2 - 0.3);
-  addSteelRail(CORE.x0 + 0.05, landingZ - 0.75, TOWER.x0 - 0.05, landingZ - 0.75, SLAB_Y);
+  // Balconada sobre la biblioteca, delante del ascensor, y su vuelta
+  addSteelRail(VOID.x0 + 0.05, EDGE_Z - 0.34, CORE.x1 - 0.32, EDGE_Z - 0.34, SLAB_Y);
+  addSteelRail(CORE.x1 - 0.32, EDGE_Z - 0.34, CORE.x1 - 0.32, VOID.z0 + 0.35, SLAB_Y);
+  // Ojo de la escalera, tramo a tramo, y el borde del hueco en la planta alta
+  for (const [x1, z1, x2, z2, y1, y2] of flightRails) addSteelRail(x1, z1, x2, z2, (y1 + y2) / 2 - 0.25, y2 - y1);
+  addSteelRail(WELL.x0 - 0.03, WELL.z1, WELL.x0 - 0.03, -15.2, SLAB_Y);
   group.add(mesh(rails, steel));
 
-  // Antepecho blanco de la balconada sobre el vestíbulo
-  group.add(mesh([box(CORE.x1 + 1.1 - VOID.x0, 0.55, 0.3, (VOID.x0 + CORE.x1 + 1.1) / 2, SLAB_Y + 0.28, VOID.z0 + 0.18)], whiteConcrete));
+  // Ventanas del hueco de escalera, en el muro norte del núcleo
+  const stairWindows = [];
+  const stairGlass = new THREE.MeshStandardMaterial({ color: 0xcfe3ea, emissive: 0xbcd6de, emissiveIntensity: 0.55, roughness: 0.2 });
+  for (const y of [STAIR_WINDOWS[0], STAIR_WINDOWS[1]]) {
+    const cxw = (WELL.x0 + WELL.x1) / 2;
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.85), stairGlass);
+    pane.position.set(cxw, y, WELL.z0 + 0.012);
+    group.add(pane);
+    stairWindows.push(
+      box(1.07, 0.06, 0.05, cxw, y + 0.455, WELL.z0 + 0.02),
+      box(1.07, 0.06, 0.05, cxw, y - 0.455, WELL.z0 + 0.02),
+      box(0.06, 0.97, 0.05, cxw - 0.505, y, WELL.z0 + 0.02),
+      box(0.06, 0.97, 0.05, cxw + 0.505, y, WELL.z0 + 0.02)
+    );
+  }
+  group.add(mesh(stairWindows, seatBlack, false));
 
-  // #CUCALVIÀ en letras de bulto sobre el antepecho
+  // Antepecho blanco de la balconada sobre el vestíbulo
+  group.add(mesh([box(CORE.x1 - VOID.x0, 0.55, 0.3, (VOID.x0 + CORE.x1) / 2, SLAB_Y + 0.28, EDGE_Z - 0.12)], whiteConcrete));
+
+  // #CUCALVIÀ en letras de bulto sobre el antepecho, mirando a la biblioteca
   const word = blockLetterCells('#CUCALVIÀ', { px: 15 });
   const pix = 0.052;
   const letters = word.cells.map(([cx, cy]) =>
-    box(pix, pix, 0.24, CORE.x1 + 1.0 - word.width * pix + cx * pix, SLAB_Y + 0.55 + cy * pix, VOID.z0 + 0.18)
+    box(pix, pix, 0.24, CORE.x1 - 0.2 - word.width * pix + cx * pix, SLAB_Y + 0.55 + cy * pix, EDGE_Z - 0.12)
   );
   group.add(mesh(letters, whiteConcrete));
 
@@ -827,15 +993,20 @@ export function createInterior() {
   group.add(officeWin);
   group.add(mesh([box(0.1, 1.06, 1.26, WALL_X + 0.03, 1.55, -11.6)], doorMat, false));
 
-  // Banderolas verticales en el muro este de la doble altura
-  for (const [i, words, color, drip] of [
-    [0, ['SUPORT', 'FUTUR', 'ESPAIS'], '#9bb93a', '#c3db5e'],
-    [1, ['LECTURA', 'AUDIOVISUAL'], '#d9b52a', '#f0d466'],
-    [2, ['ESTUDI', 'ESPAIS'], '#9bb93a', '#c3db5e']
-  ]) {
-    const b = panel(banner(words, { color, drip }), 1.3, 5.0, R - 0.05, 4.4, -3.2 - i * 2.4, -Math.PI / 2);
+  // Banderolas de la doble altura, en el muro norte del ala este: verde, amarilla,
+  // magenta y azul, cada una con su foto virada en la cabecera
+  [
+    [['SUPORT', 'FUTUR', 'ESPAIS'], '#7fa82a', '#a9cf45', 'building', ''],
+    [['ESTUDI', 'LECTURA'], '#d6a51c', '#f0c94a', 'books', ''],
+    [['CONEIXEMENTS', 'TALLERS', 'ORIENTACIÓ'], '#c41f63', '#e2457f', 'people', ''],
+    [['NOVETATS', 'MOBILITAT'], '#1f74c4', '#4a9be0', 'people', 'BIBLIOTECA']
+  ].forEach(([words, color, drip, photo, title], i) => {
+    const x = 6.0 + i * 1.5;
+    const b = panel(banner(words, { color, drip, photo, title }), 1.15, 5.2, x, 5.75, VOID.z0 + 0.36, 0, {
+      material: { color: 0xc4c4c4, roughness: 0.95 }
+    });
     group.add(b);
-  }
+  });
 
   /* ---------------- Biblioteca ---------------- */
   const shelfWood = [];
@@ -869,7 +1040,7 @@ export function createInterior() {
   // Módulos bajos de novedades junto al vidrio, dejando libre la entrada
   for (const x of [-1.2, 7.6]) addUnit(x, -2.6, 3.0, 0, false);
   // Expositores de DVD y revistas contra el muro este
-  for (let z = -2.6; z >= -10.5; z -= 3.2) addUnit(R - 0.4, z, 3.0, -Math.PI / 2, false);
+  addUnit(R - 0.4, -2.6, 3.0, -Math.PI / 2, false);
 
   group.add(mesh(shelfWood, beech));
   group.add(mesh(shelfSides, shelfBlue));
@@ -902,19 +1073,62 @@ export function createInterior() {
   // Puesto de consulta con ordenador
   lowTops.push(box(1.5, 0.04, 0.75, L + 5.6, 0.735, BACK + 1.0));
   group.add(mesh([box(0.5, 0.34, 0.05, L + 5.6, 1.1, BACK + 0.72)], seatBlack, false));
+
+  // Rótulo BIBLIOTECA en el muro este, junto al muro cortina, con la rejilla de
+  // carteles debajo; delante, la mesa de lectura con su balda alta, el puesto
+  // de ordenador, los atriles de música y una mesita redonda de revistas
+  const biblioteca = panel(wallLettering('BIBLIOTECA'), 5.2, 1.3, R - 0.04, 3.45, -7.0, -Math.PI / 2, {
+    transparent: true,
+    material: { transparent: true, roughness: 0.95 }
+  });
+  group.add(biblioteca);
+  group.add(panel(noticeboard(), 2.6, 1.0, R - 0.04, 1.85, -8.3, -Math.PI / 2));
+  group.add(panel(noticeboard(), 2.4, 1.6, L + 3.4, 1.75, BACK + 0.12));
+
+  const libTops = [];
+  const libWood = [];
+  const read = deskGeometries(R - 1.6, -7.7, 2.9, 1.1);
+  libWood.push(...read.top);
+  lowLegs.push(...read.legs);
+  // Balda corrida a media altura sobre la mesa
+  libWood.push(box(2.5, 0.035, 0.3, R - 1.75, 1.08, -7.7));
+  for (const dx of [-1.15, 0, 1.15]) libWood.push(box(0.035, 0.32, 0.26, R - 1.75 + dx, 0.91, -7.7));
+  for (const dx of [-0.75, 0.15]) {
+    addLowChair(R - 1.6 + dx, -7.7 + 0.82, Math.PI);
+    addLowChair(R - 1.6 + dx, -7.7 - 0.82, 0);
+  }
+  const pc = deskGeometries(R - 0.45, -5.0, 1.4, 0.7, Math.PI / 2);
+  libTops.push(...pc.top);
+  lowLegs.push(...pc.legs);
+  group.add(mesh([
+    box(0.05, 0.34, 0.5, R - 0.35, 1.0, -5.0),
+    box(0.04, 0.2, 0.05, R - 0.33, 0.82, -5.0)
+  ], seatBlack, false));
+  addLowChair(R - 1.15, -5.0, -Math.PI / 2);
+  // Atriles
+  const stands = [];
+  for (const [x, z, r] of [[R - 0.7, -9.75, -1.2], [R - 1.3, -10.1, -1.9]]) {
+    stands.push(new THREE.CylinderGeometry(0.012, 0.012, 1.1, 6).translate(x, 0.55, z));
+    stands.push(new THREE.BoxGeometry(0.46, 0.32, 0.01).rotateX(-0.35).rotateY(r).translate(x, 1.18, z));
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2;
+      stands.push(new THREE.BoxGeometry(0.3, 0.012, 0.012).rotateZ(-0.5).rotateY(a).translate(x + Math.cos(a) * 0.12, 0.07, z - Math.sin(a) * 0.12));
+    }
+  }
+  group.add(mesh(stands, seatBlack, false));
+  // Mesita redonda de revistas entre las estanterías
+  const side = roundTableGeometries(8.9, -10.9, 0.34);
+  side.top.forEach((g) => g.translate(0, -0.22, 0));
+  libWood.push(...side.top);
+  lowLegs.push(...side.legs.map((g) => g.scale(0.6, 0.7, 0.6).translate(8.9 * 0.4, 0, -10.9 * 0.4)));
+  group.add(mesh(libWood, beech));
+  group.add(mesh(libTops, laminate));
+
   group.add(mesh(lowTops, laminate));
   group.add(mesh(lowLegs, tubular));
   group.add(mesh(lowSeats, seatBlue));
   group.add(mesh(lowBacks, seatBlack));
   group.add(mesh(lowFrames, tubular));
-
-  // Rótulo BIBLIOTECA y panel de anuncios en el muro del fondo
-  const biblioteca = panel(wallLettering('BIBLIOTECA'), 5.4, 1.35, L + 4.6, 3.1, BACK + 0.12, 0, {
-    transparent: true,
-    material: { transparent: true, roughness: 0.95 }
-  });
-  group.add(biblioteca);
-  group.add(panel(noticeboard(), 2.4, 1.6, L + 3.4, 1.75, BACK + 0.12));
 
   // Lámparas industriales: cuerpo gris de aletas y campana de vidrio
   // prismático, colgadas de la cubierta con cable blanco a alturas distintas.
