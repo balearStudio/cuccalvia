@@ -49,6 +49,31 @@ const OUTLINE = [
 /** Hueco de ascensor y escalera: el bloque de tres plantas del catastro. */
 export const CORE = { x0: -1.6, x1: 4.6, z0: -17.7, z1: -12.4 };
 
+/**
+ * Caja del ascensor: la parte este del núcleo. Sube desde el suelo hasta por
+ * encima de la cubierta, con su cara norte enrasada con la fachada.
+ */
+export const TOWER = { x0: 0.9, x1: 4.6, z0: -17.7, z1: -13.1 };
+
+/**
+ * Perímetro de la cubierta: el de la planta retranqueado hacia fuera, con un
+ * vuelo distinto en cada tramo. Se usa para el forjado, el solado y la
+ * barandilla.
+ */
+const ROOF_POLY = [
+  [-13.6, 5.0],
+  [13.6, 5.0],
+  [13.6, -14.0],
+  [6.2, -14.0],
+  [6.2, -18.0],
+  [-1.3, -18.0],
+  [-1.3, -24.0],
+  [-13.6, -24.0]
+];
+
+/** Pasarela del aparcamiento: aterriza entre el ala norte y la torre. */
+export const BRIDGE = { x: -0.35, width: 1.8, z0: -18.0, z1: -24.6 };
+
 const wallTop = (x, z) => roofSoffitY(x, z) - PLAN.gap;
 
 /* ------------------------------------------------------------------ */
@@ -130,11 +155,11 @@ function makeMaterials() {
     envMapIntensity: 1.0
   });
 
-  // Desde la vista aérea la cubierta es de grava clara, entre arena y tostado
+  // La cubierta es una terraza transitable de baldosa de barro
   const roofTop = new THREE.MeshStandardMaterial({
-    map: t.concrete,
-    color: 0xc3b795,
-    roughness: 0.95,
+    map: t.roofTile,
+    color: 0xf3e2d6, // salmón, más apagado que el barro cocido
+    roughness: 0.6,
     metalness: 0.05,
     envMapIntensity: 0.4
   });
@@ -513,17 +538,9 @@ function roof(m) {
   const g = new THREE.Group();
   const OVER = 1.6; // vuelo lateral y trasero
   const FRONT = 5.0; // vuelo sobre el pórtico
-  const poly = [
-    [PLAN.left - OVER, FRONT],
-    [PLAN.right + OVER, FRONT],
-    [PLAN.right + OVER, -12.4 - OVER],
-    [4.6 + OVER, -12.4 - OVER],
-    [4.6 + OVER, -17.7 - OVER],
-    [-1.6 - OVER, -17.7 - OVER],
-    [-1.6 - OVER, PLAN.back - OVER],
-    [PLAN.left - OVER, PLAN.back - OVER]
-  ];
-
+  // A los dos lados del paso de la pasarela el vuelo casi desaparece: el ala
+  // norte y la caja del ascensor dejan entre ambas el hueco justo para cruzar.
+  const poly = ROOF_POLY;
   // La forma se dibuja en XY con la y local hacia el norte, se extruye el
   // canto y se tumba; después se cizalla para darle la pendiente.
   const shape = new THREE.Shape();
@@ -575,7 +592,7 @@ function roof(m) {
   drip.castShadow = true;
   g.add(drip);
 
-  g.add(roofRail(m, PLAN.left - OVER + 0.8, PLAN.right + OVER - 0.8));
+  g.add(roofRail(m));
   return g;
 }
 
@@ -586,7 +603,7 @@ function roof(m) {
  * barandilla metálica sencilla —montantes y dos largueros— con la fila de
  * lucernarios blancos justo detrás.
  */
-function roofRail(m, xFrom, xTo) {
+function roofRail(m) {
   const g = new THREE.Group();
   const r = 0.028;
   const bars = [];
@@ -620,99 +637,129 @@ function roofRail(m, xFrom, xTo) {
     }
   };
 
-  // Recorre el perímetro de la terraza, retranqueado del borde volado
-  const IN = 0.5;
-  const edge = [
-    [xFrom, 4.3],
-    [xTo, 4.3],
-    [xTo, -12.4 - 1.6 + IN],
-    [4.6 + 1.6 - IN, -12.4 - 1.6 + IN],
-    [4.6 + 1.6 - IN, -17.7 - 1.6 + IN],
-    [-1.6 - 1.6 + IN, -17.7 - 1.6 + IN],
-    [-1.6 - 1.6 + IN, PLAN.back - 1.6 + IN],
-    [xFrom, PLAN.back - 1.6 + IN],
-    [xFrom, 4.3]
+  // Recorre el borde de la terraza, retranqueado del canto; se interrumpe
+  // donde está la caja del ascensor y donde aterriza la pasarela
+  const IN = 0.25;
+  const runs = [
+    [[-13.6 + IN, 5.0 - 0.7], [13.6 - IN, 5.0 - 0.7]],
+    [[13.6 - IN, 5.0 - 0.7], [13.6 - IN, -14.0 + IN]],
+    [[13.6 - IN, -14.0 + IN], [6.2 - IN, -14.0 + IN]],
+    [[6.2 - IN, -14.0 + IN], [6.2 - IN, -18.0 + IN]],
+    [[6.2 - IN, -18.0 + IN], [TOWER.x1, -18.0 + IN]],
+    [[-1.3 + IN, BRIDGE.z0 - 0.05], [-1.3 + IN, -24.0 + IN]],
+    [[-1.3 + IN, -24.0 + IN], [-13.6 + IN, -24.0 + IN]],
+    [[-13.6 + IN, -24.0 + IN], [-13.6 + IN, 5.0 - 0.7]]
   ];
-  for (let i = 0; i < edge.length - 1; i++) run(edge[i][0], edge[i][1], edge[i + 1][0], edge[i + 1][1]);
+  for (const [[ax, az], [bx, bz]] of runs) run(ax, az, bx, bz);
 
   g.add(...bars);
   return g;
 }
 
 /**
- * Torre del ascensor y el almacén: la tercera planta, que asoma por encima de
- * la cubierta. Desde el aparcamiento —que está a la cota del techo— se lee como
- * un volumen suelto con el rótulo CUC; desde la carretera de atrás, como el
- * cuerpo que sobresale del edificio.
+ * Caja del ascensor y la escalera: la tercera planta del catastro. Arranca del
+ * suelo, con la cara norte enrasada con la fachada y sus dos ventanas
+ * cuadradas, atraviesa la cubierta y sale por encima. En la terraza, la puerta
+ * del ascensor da al oeste, al rellano donde aterriza la pasarela; la cara
+ * norte, con el rótulo CUC, mira al aparcamiento.
  */
 function roofTower(m) {
   const g = new THREE.Group();
-  const w = CORE.x1 - CORE.x0 - 0.6;
-  const d = CORE.z1 - CORE.z0 - 0.6;
-  const x = (CORE.x0 + CORE.x1) / 2;
-  const z = (CORE.z0 + CORE.z1) / 2;
-  const h = 4.0;
+  const { x0, x1, z0, z1 } = TOWER;
+  const w = x1 - x0;
+  const d = z1 - z0;
+  const x = (x0 + x1) / 2;
+  const z = (z0 + z1) / 2;
   const base = roofSoffitY(x, z) + ROOF.thickness;
+  const top = base + 3.9;
 
-  g.add(box(w, h, d, m.stucco, [x, base + h / 2, z]));
-  // Coronación con un pequeño vuelo
-  g.add(box(w + 0.3, 0.24, d + 0.3, m.edge, [x, base + h + 0.12, z]));
+  // Fuste: por debajo de la cubierta, las caras sur y oeste quedan dentro del
+  // edificio y van enlucidas en blanco; el resto es revoco de fachada
+  const below = base - 0.05;
+  const lower = new THREE.Mesh(new THREE.BoxGeometry(w, below, d + 0.04),
+    [m.stucco, m.plaster, m.stucco, m.stucco, m.plaster, m.stucco]);
+  lower.position.set(x, below / 2, z - 0.02);
+  g.add(lower);
+  g.add(box(w, top - below, d + 0.04, m.stucco, [x, below + (top - below) / 2, z - 0.02]));
+  g.add(box(w + 0.12, 0.2, d + 0.16, m.edge, [x, top + 0.1, z - 0.02]));
 
-  // Ventana cuadrada del hueco de escalera
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.66), m.darkGlass);
-  win.position.set(x - w / 2 - 0.01, base + 2.3, z + 0.4);
-  win.rotation.y = -Math.PI / 2;
-  g.add(win);
-  g.add(box(0.08, 0.78, 0.78, m.mullion, [x - w / 2 + 0.02, base + 2.3, z + 0.4], false));
+  // Las dos ventanas cuadradas de la cara norte (planta baja y primera)
+  for (const y of [1.6, 5.4]) {
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.72), m.darkGlass);
+    pane.position.set(x0 + 1.0, y, z0 - 0.05);
+    pane.rotation.y = Math.PI;
+    g.add(pane);
+    g.add(box(0.84, 0.84, 0.05, m.edge, [x0 + 1.0, y, z0 - 0.03], false));
+  }
 
-  // Rejilla de ventilación del cuarto de máquinas
-  g.add(box(0.06, 0.42, 0.62, m.mullion, [x - w / 2 - 0.02, base + 1.05, z - 0.5], false));
+  // Rótulo CUC sobre su panel, en lo alto de la cara norte
+  g.add(box(1.9, 2.1, 0.03, new THREE.MeshStandardMaterial({ color: 0xcbb5a3, roughness: 0.9 }),
+    [x1 - 1.3, base + 1.75, z0 - 0.06], false));
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f4f2ec';
+  ctx.font = '500 170px Barlow, Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '8px';
+  ctx.fillText('CUC', 256, 128);
+  const cucTex = new THREE.CanvasTexture(c);
+  cucTex.colorSpace = THREE.SRGBColorSpace;
+  const cuc = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8),
+    new THREE.MeshStandardMaterial({ map: cucTex, transparent: true, roughness: 0.6, metalness: 0.3 }));
+  cuc.position.set(x1 - 1.3, base + 2.45, z0 - 0.08);
+  cuc.rotation.y = Math.PI;
+  g.add(cuc);
 
-  // Puertas del ascensor, en la cara que da a la terraza
+  // Puertas del ascensor en la cara oeste: en la terraza, en la primera y en
+  // la planta baja (estas dos, ya dentro del edificio)
   const steelDoor = new THREE.MeshStandardMaterial({ color: 0xb8bcbd, metalness: 0.82, roughness: 0.3 });
   const liftGlass = new THREE.MeshPhysicalMaterial({
     color: 0x1d262a, metalness: 0.1, roughness: 0.08, transparent: true, opacity: 0.6, envMapIntensity: 1.1
   });
-  const doorZ = z + d / 2;
-  g.add(box(1.55, 2.35, 0.1, steelDoor, [x - 0.5, base + 1.2, doorZ + 0.01], false));
+  const doorZ = z0 + 2.2;
+  g.add(box(0.1, 2.35, 1.55, steelDoor, [x0 - 0.01, base + 1.2, doorZ], false));
   const liftPane = new THREE.Mesh(new THREE.PlaneGeometry(1.26, 2.06), liftGlass);
-  liftPane.position.set(x - 0.5, base + 1.2, doorZ + 0.07);
+  liftPane.position.set(x0 - 0.07, base + 1.2, doorZ);
+  liftPane.rotation.y = -Math.PI / 2;
   g.add(liftPane);
-  g.add(box(0.05, 2.1, 0.09, steelDoor, [x - 0.5, base + 1.2, doorZ + 0.08], false));
+  // Dentro, el ascensor abre a la biblioteca y a la planta alta por la cara sur
+  for (const floorY of [0.05, 4.22]) {
+    g.add(box(1.2, 2.3, 0.08, m.plaster, [x, floorY + 1.15, z1 + 0.04], false));
+    g.add(box(1.0, 2.1, 0.06, steelDoor, [x, floorY + 1.05, z1 + 0.08], false));
+    g.add(box(0.02, 2.1, 0.07, m.mullion, [x, floorY + 1.05, z1 + 0.1], false));
+    const display = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0xff3a1a, emissiveIntensity: 0.4 }));
+    display.position.set(x, floorY + 2.3, z1 + 0.1);
+    g.add(display);
+  }
 
-  // Buzón verde de PREMSA
-  g.add(box(0.46, 0.38, 0.14, new THREE.MeshStandardMaterial({ color: 0x1d6b43, roughness: 0.55, metalness: 0.3 }),
-    [x - 1.65, base + 1.35, doorZ + 0.08], false));
+  // Buzón verde de PREMSA junto a la puerta
+  g.add(box(0.14, 0.38, 0.46, new THREE.MeshStandardMaterial({ color: 0x1d6b43, roughness: 0.55, metalness: 0.3 }),
+    [x0 - 0.08, base + 1.35, z1 - 0.7], false));
 
-  // Proyector y antena, como en la foto desde la carretera de atrás
+  // Proyectores, piloto naranja y antenas
   const metal = new THREE.MeshStandardMaterial({ color: 0x74777a, metalness: 0.6, roughness: 0.45 });
-  for (const [fx, fz] of [[x - w / 2 - 0.12, z + 1.2], [x + 0.6, z - d / 2 - 0.12]]) {
-    const flood = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.16), metal);
+  for (const [fx, fz, ry] of [[x1 - 0.6, z0 - 0.12, 0], [x0 - 0.12, z0 + 1.0, Math.PI / 2], [x0 - 0.12, z1 - 1.6, Math.PI / 2]]) {
+    const flood = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.12), metal);
     flood.position.set(fx, base + 3.1, fz);
-    flood.rotation.z = 0.3;
+    flood.rotation.y = ry;
     g.add(flood);
   }
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.2, 6), metal);
-  mast.position.set(x + 1.5, base + h + 1.7, z - 1.2);
-  g.add(mast);
-  const aerial = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.06), metal);
-  aerial.position.set(x + 1.5, base + h + 3.0, z - 1.2);
-  g.add(aerial);
-
-  // Rótulo CUC en la cara norte, la que mira al aparcamiento, sobre su panel
-  g.add(box(2.5, 2.2, 0.03, new THREE.MeshStandardMaterial({ color: 0xcbb5a3, roughness: 0.9 }),
-    [x, base + 2.3, z - d / 2 - 0.015], false));
-  const letters = [];
-  let lx = x - 1.0;
-  for (const ch of ['C', 'U', 'C']) {
-    letters.push(new THREE.BoxGeometry(0.6, 0.7, 0.06).translate(lx, base + 2.5, z - d / 2 - 0.03));
-    if (ch === 'U') letters.push(new THREE.BoxGeometry(0.38, 0.2, 0.07).translate(lx, base + 2.78, z - d / 2 - 0.04));
-    lx += 0.84;
+  const beacon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0xff9a2a, emissive: 0xff7a00, emissiveIntensity: 0.6 }));
+  beacon.position.set(x, top - 0.25, z1 + 0.04);
+  g.add(beacon);
+  for (const [mx, mz, h] of [[x1 - 0.4, z0 + 0.4, 3.0], [x0 + 0.4, z1 - 0.5, 2.0]]) {
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, h, 6), metal);
+    mast.position.set(mx, top + h / 2, mz);
+    g.add(mast);
+    const aerial = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.05), metal);
+    aerial.position.set(mx, top + h - 0.2, mz);
+    g.add(aerial);
   }
-  const cuc = new THREE.Mesh(mergeGeometries(letters), new THREE.MeshStandardMaterial({
-    color: 0xf1efe8, roughness: 0.8
-  }));
-  g.add(cuc);
 
   g.traverse((o) => {
     if (o.isMesh) {
@@ -722,7 +769,6 @@ function roofTower(m) {
   });
   return g;
 }
-
 
 /**
  * Pórtico. Las columnas son gruesas y ligeramente troncocónicas —más anchas

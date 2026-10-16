@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildTextures } from './textures.js';
+import { BRIDGE, roofSoffitY, ROOF } from './building.js';
 
 /**
  * Entorno: jardín, pinar mediterráneo, setos, muretes de piedra y caminos.
@@ -230,7 +231,7 @@ export function createEnvironment() {
   });
 
   const lot = new THREE.Mesh(new THREE.BoxGeometry(52, 0.3, 22), asphaltMat);
-  lot.position.set(2, PARK_Y - 0.15, -37);
+  lot.position.set(2, PARK_Y - 0.15, -35.6);
   lot.receiveShadow = true;
   group.add(lot);
 
@@ -238,17 +239,23 @@ export function createEnvironment() {
   // no hay talud sino un muro de contención y el foso que cruza la pasarela.
   const fillMat = new THREE.MeshStandardMaterial({ map: t.stone, color: 0xc9bca6, roughness: 0.96 });
   const fillBox = new THREE.Mesh(new THREE.BoxGeometry(62, PARK_Y - GROUND_Y, 26), fillMat);
-  fillBox.position.set(2, (GROUND_Y + PARK_Y) / 2 - 0.15, -39);
+  fillBox.position.set(2, (GROUND_Y + PARK_Y) / 2 - 0.15, -37.6);
   fillBox.receiveShadow = true;
   fillBox.castShadow = true;
   group.add(fillBox);
 
   const retaining = [];
-  retaining.push(new THREE.BoxGeometry(52, 1.1, 0.6).translate(2, PARK_Y + 0.25, -26.2));
+  // Parapeto hacia el edificio, con la cancela abierta donde arranca la pasarela
+  const gapA = BRIDGE.x - BRIDGE.width / 2;
+  const gapB = BRIDGE.x + BRIDGE.width / 2;
+  retaining.push(new THREE.BoxGeometry(gapA + 24, 1.1, 0.6).translate((gapA - 24) / 2, PARK_Y + 0.25, -24.9));
+  retaining.push(new THREE.BoxGeometry(28 - gapB, 1.1, 0.6).translate((gapB + 28) / 2, PARK_Y + 0.25, -24.9));
   for (const sx of [-1, 1]) {
-    retaining.push(new THREE.BoxGeometry(0.6, 1.1, 22).translate(2 + sx * 26, PARK_Y + 0.25, -37));
+    retaining.push(new THREE.BoxGeometry(0.6, 1.1, 22).translate(2 + sx * 26, PARK_Y + 0.25, -35.6));
   }
-  const retainingMesh = new THREE.Mesh(mergeGeometries(retaining), stoneMat);
+  // Parapeto de hormigón gris, como en las fotos del aparcamiento
+  const parapetConcrete = new THREE.MeshStandardMaterial({ map: t.concrete, color: 0xb3b0a8, roughness: 0.95 });
+  const retainingMesh = new THREE.Mesh(mergeGeometries(retaining), parapetConcrete);
   retainingMesh.castShadow = true;
   retainingMesh.receiveShadow = true;
   group.add(retainingMesh);
@@ -300,34 +307,42 @@ export function createEnvironment() {
   const gratingMat = new THREE.MeshStandardMaterial({
     color: 0x8f9499, metalness: 0.65, roughness: 0.55
   });
-  const bridgeX = 2.5;
-  const bridgeY = PARK_Y + 0.22;
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.08, 3.2), gratingMat);
-  deck.position.set(bridgeX, bridgeY, -25.1);
+  // Cruza el foso de norte a sur y aterriza en el rellano que queda entre el
+  // ala norte (a la derecha, mirando al edificio) y la caja del ascensor
+  const bridgeX = BRIDGE.x;
+  const yA = PARK_Y + 0.05; // lado aparcamiento
+  const yB = roofSoffitY(bridgeX, BRIDGE.z0) + ROOF.thickness + 0.02; // lado terraza
+  const span = BRIDGE.z0 - BRIDGE.z1;
+  const slope = Math.atan2(yB - yA, span);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.width, 0.08, Math.hypot(span, yB - yA)), gratingMat);
+  deck.position.set(bridgeX, (yA + yB) / 2, (BRIDGE.z0 + BRIDGE.z1) / 2);
+  deck.rotation.x = -slope;
   deck.castShadow = true;
   deck.receiveShadow = true;
   bridge.add(deck);
 
   const railBars = [];
+  const at = (t) => [BRIDGE.z1 + span * t, yA + (yB - yA) * t];
   for (const sx of [-1, 1]) {
-    const x = bridgeX + sx * 1.1;
-    const z0 = -26.7;
-    const z1 = -23.5;
-    railBars.push(new THREE.BoxGeometry(0.05, 0.05, z1 - z0).translate(x, bridgeY + 1.0, (z0 + z1) / 2));
-    railBars.push(new THREE.BoxGeometry(0.04, 0.04, z1 - z0).translate(x, bridgeY + 0.12, (z0 + z1) / 2));
-    const posts = 3;
+    const x = bridgeX + sx * (BRIDGE.width / 2);
+    const posts = 4;
+    for (const dy of [1.0, 0.12]) {
+      const [za, ya] = at(0);
+      const [zb, yb] = at(1);
+      const len = Math.hypot(zb - za, yb - ya);
+      railBars.push(new THREE.BoxGeometry(0.045, 0.045, len).rotateX(-slope).translate(x, (ya + yb) / 2 + dy, (za + zb) / 2));
+    }
     for (let i = 0; i <= posts; i++) {
-      const z = z0 + ((z1 - z0) / posts) * i;
-      railBars.push(new THREE.BoxGeometry(0.05, 1.02, 0.05).translate(x, bridgeY + 0.51, z));
+      const [pz, py] = at(i / posts);
+      railBars.push(new THREE.BoxGeometry(0.05, 1.02, 0.05).translate(x, py + 0.51, pz));
       if (i === posts) continue;
-      // Aspas
-      const za = z;
-      const zb = z0 + ((z1 - z0) / posts) * (i + 1);
-      const d = Math.hypot(zb - za, 0.85);
-      for (const dir of [1, -1]) {
-        const bar = new THREE.BoxGeometry(0.03, 0.03, d);
-        bar.rotateX(Math.atan2(0.85 * dir, zb - za));
-        bar.translate(x, bridgeY + 0.55, (za + zb) / 2);
+      const [qz, qy] = at((i + 1) / posts);
+      for (const [ya0, ya1] of [[0.12, 0.95], [0.95, 0.12]]) {
+        const dz = qz - pz;
+        const dyy = (qy + ya1) - (py + ya0);
+        const bar = new THREE.BoxGeometry(0.03, 0.03, Math.hypot(dz, dyy));
+        bar.rotateX(-Math.atan2(dyy, dz));
+        bar.translate(x, (py + ya0 + qy + ya1) / 2, (pz + qz) / 2);
         railBars.push(bar);
       }
     }
@@ -542,6 +557,7 @@ export function createEnvironment() {
     (x > -14 && x < 14 && z > -27 && z < 2) || // el propio edificio
     (z > -24 && z < -14 && x > -32 && x < 32) || // talud
     (x > -27 && x < 31 && z > -46 && z < -21) || // aparcamiento
+    (x > -2 && x < 6 && z > -25 && z < -17) || // foso bajo la pasarela
     (x > 12 && x < 21 && z > -30 && z < 8) || // escalera del flanco derecho
     (x > 25 && x < 52 && z > -46 && z < 14); // pista de pádel y piscina
 

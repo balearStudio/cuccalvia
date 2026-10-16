@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildTextures } from './textures.js';
-import { roofSoffitY, ROOF } from './building.js';
+import { roofSoffitY, ROOF, TOWER } from './building.js';
 import {
   doorStrip, wallLettering, chalkboard, noticeboard, ROOM_COLORS,
-  wallLines, followUs, logoPanel, banner, mural, blockLetterCells
+  wallLines, followUs, logoPanel, banner, mural, blockLetterCells, europeBoard, becaLetters
 } from './signage.js';
 
 /**
@@ -496,14 +496,8 @@ export function createInterior() {
     for (const [x0, z0, x1, z1] of bandTargets) addSkirting(x0, z0, x1, z1, SLAB_Y + 0.02);
   }
 
-  // Núcleo de ascensor y escalera
-  for (const [x0, z0, x1, z1] of [
-    [CORE.x0, CORE.z0, CORE.x1, CORE.z0],
-    [CORE.x0, CORE.z1, CORE.x1, CORE.z1],
-    [CORE.x1, CORE.z0, CORE.x1, CORE.z1]
-  ]) {
-    addWall(x0, z0, x1, z1);
-  }
+  // El núcleo: la caja del ascensor la levanta building.js; aquí solo se cierra
+  // el hueco de escalera por el este, contra el ascensor
 
   group.add(mesh(partitions, wallMat));
   screens.forEach((p) => group.add(p));
@@ -672,6 +666,16 @@ export function createInterior() {
     group.add(c);
   }
 
+  // «Calvià in Europe» en el paramento de la sala de grupo que da a la escalera
+  const europe = panel(europeBoard(), 2.0, 1.95, -1.7 + 0.09, SLAB_Y + 1.55, -16.4, Math.PI / 2);
+  group.add(europe);
+  group.add(mesh([box(0.05, 2.07, 2.12, -1.7 + 0.06, SLAB_Y + 1.55, -16.4)], beech, false));
+  // BECA, sobre el muro de la sala 1 que cierra el rellano
+  const beca = panel(becaLetters(), 2.2, 1.1, -5.0, SLAB_Y + 1.9, -12.0 - 0.08, Math.PI, {
+    transparent: true, material: { transparent: true }
+  });
+  group.add(beca);
+
   // Estrellas de papel colgadas
   for (const [x, z] of [[-4.0, -14.0], [L + 3.2, -18.0]]) {
     const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.34, 1), new THREE.MeshStandardMaterial({
@@ -688,7 +692,7 @@ export function createInterior() {
 
   // Columnas de hormigón gris visto: de doble altura contra el muro cortina y
   // en el vacío, y más bajas sosteniendo el borde del altillo
-  const concreteGrey = new THREE.MeshStandardMaterial({ map: t.terrazzo, color: 0xbdbdb8, roughness: 0.85 });
+  const concreteGrey = new THREE.MeshStandardMaterial({ color: 0xb9b8b2, roughness: 0.88 });
   const columns = [];
   for (const [x, z] of [[-1.0, -1.1], [2.6, -1.1], [6.2, -1.1], [9.8, -1.1], [4.2, -7.0]]) {
     const h = roofSoffitY(x, z) - 0.3;
@@ -705,12 +709,34 @@ export function createInterior() {
     box(CORE.x1 + 1.2 - VOID.x0, 0.85, 0.3, (VOID.x0 + CORE.x1 + 1.2) / 2, SLAB_Y - 0.25, VOID.z0 - 0.1)
   ], whiteConcrete));
 
-  // Escalera y barandilla de acero con cruces de San Andrés
+  // Escalera de dos tramos en el hueco oeste del núcleo, junto al ascensor:
+  // peldaño de terrazo con mamperlán de madera, como en las fotos
   const stairs = [];
-  const steps = 16;
-  for (let i = 0; i < steps; i++) stairs.push(box(1.9, 0.26, 0.3, CORE.x0 + 1.2, 0.13 + i * 0.26, CORE.z1 - 0.4 - i * 0.3));
-  stairs.push(box(2.3, 0.2, 1.8, CORE.x0 + 1.2, SLAB_Y - 0.1, CORE.z1 - 0.4 - steps * 0.3 - 0.9));
-  group.add(mesh(stairs, whiteConcrete));
+  const nosings = [];
+  const RISERS = 8;
+  const rise = SLAB_Y / (RISERS * 2);
+  const tread = 0.28;
+  const zStart = CORE.z1 - 0.3;
+  const flightA = CORE.x0 + 0.6; // sube hacia el norte
+  const flightB = TOWER.x0 - 0.6; // baja hacia el sur hasta la planta alta
+  for (let i = 0; i < RISERS; i++) {
+    const y = rise * (i + 1);
+    const z = zStart - tread * (i + 0.5);
+    stairs.push(box(1.1, y, tread, flightA, y / 2, z));
+    nosings.push(box(1.1, 0.05, 0.03, flightA, y - 0.02, z + tread / 2));
+  }
+  const landingZ = zStart - tread * RISERS - 0.75;
+  stairs.push(box(TOWER.x0 - CORE.x0, 0.2, 1.5, (CORE.x0 + TOWER.x0) / 2, SLAB_Y / 2 - 0.1, landingZ));
+  for (let i = 0; i < RISERS; i++) {
+    const y = SLAB_Y / 2 + rise * (i + 1);
+    const z = zStart - tread * (RISERS - i - 0.5);
+    stairs.push(box(1.1, 0.24, tread, flightB, y - 0.12, z));
+    nosings.push(box(1.1, 0.05, 0.03, flightB, y - 0.02, z - tread / 2));
+  }
+  const stairMat = terrazzo.clone();
+  stairMat.map = tiled(t.terrazzo, 1, 1, 1.2);
+  group.add(mesh(stairs, stairMat));
+  group.add(mesh(nosings, skirtingMat, false));
 
   const rails = [];
   const addSteelRail = (x1, z1, x2, z2, y) => {
@@ -738,10 +764,18 @@ export function createInterior() {
         local.push(bar);
       }
     }
+    // Disco en cada cruce, como en todas las barandillas del centro
+    for (let i = 0; i < posts; i++) {
+      const mid = -len / 2 + (len / posts) * (i + 0.5);
+      local.push(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 12).rotateX(Math.PI / 2).translate(mid, 0.54, 0));
+    }
     place(local, cx, cz, -ang, y);
     rails.push(...local);
   };
   addSteelRail(VOID.x0 + 0.05, VOID.z0 + 0.05, CORE.x1 + 1.1, VOID.z0 + 0.05, SLAB_Y);
+  // Ojo de la escalera: barandilla entre los dos tramos y alrededor en la planta alta
+  addSteelRail((flightA + flightB) / 2, zStart, (flightA + flightB) / 2, landingZ + 0.75, SLAB_Y / 2 - 0.3);
+  addSteelRail(CORE.x0 + 0.05, landingZ - 0.75, TOWER.x0 - 0.05, landingZ - 0.75, SLAB_Y);
   group.add(mesh(rails, steel));
 
   // Antepecho blanco de la balconada sobre el vestíbulo

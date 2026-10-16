@@ -472,3 +472,77 @@ export function blockLetterCells(text, { px = 16 } = {}) {
   }
   return { cells, width, height: c.height };
 }
+
+/** Panel «Calvià in Europe»: el mapa con las fotos de los intercambios. */
+export function europeBoard() {
+  const W = 1024;
+  const H = 1000;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  const rand = rng(77);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.font = '800 118px Archivo, Helvetica, Arial, sans-serif';
+  ctx.fillStyle = '#1f6fc4';
+  ctx.fillText('CALVIÀ', 60, 150);
+  ctx.font = '700 64px Archivo, Helvetica, Arial, sans-serif';
+  ctx.fillStyle = '#e8b51e';
+  ctx.fillText('IN', 60, 260);
+  ctx.font = '800 150px Archivo, Helvetica, Arial, sans-serif';
+  ctx.fillStyle = '#d6237a';
+  ctx.fillText('EUR', 150, 280);
+  ctx.fillText('PE', 640, 280);
+  ctx.fillStyle = '#2e7fc9';
+  ctx.beginPath();
+  ctx.arc(540, 230, 70, 0, 6.29);
+  ctx.fill();
+  ctx.fillStyle = '#7cc04a';
+  ctx.beginPath();
+  ctx.arc(530, 220, 40, 0, 6.29);
+  ctx.fill();
+  // Mapa: manchas verdes que insinúan el continente
+  ctx.fillStyle = '#a6d23f';
+  for (let i = 0; i < 70; i++) {
+    const x = 170 + rand() * 720;
+    const y = 360 + rand() * 560;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 30 + rand() * 70, 20 + rand() * 50, rand() * 3, 0, 6.29);
+    ctx.fill();
+  }
+  // Fotos colgadas con hilo
+  for (let i = 0; i < 9; i++) {
+    const x = (i % 3 < 1 ? 70 : 760) + rand() * 120;
+    const y = 380 + rand() * 520;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y, 90, 70);
+    ctx.fillStyle = ['#3a6ea8', '#c46a38', '#4a8a52'][i % 3];
+    ctx.fillRect(x + 6, y + 6, 78, 50);
+  }
+  return texture(c);
+}
+
+/** Letras BECA en mosaico de colores, como en la pared del rellano. */
+export function becaLetters() {
+  const W = 1024;
+  const H = 512;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '900 360px Archivo, Helvetica, Arial, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#2b2f3a';
+  ctx.fillText('BEC', 40, 260);
+  // La A, hecha de cuadraditos de colores
+  const colors = ['#d3197e', '#17a79b', '#e8c81e', '#2b6cd4', '#e08a1e', '#5b2d9b'];
+  const ax = 760;
+  const ay = 100;
+  for (let j = 0; j < 6; j++) {
+    for (let i = 0; i < 5; i++) {
+      const inA = j === 2 || i === 0 || i === 4 || j === 0;
+      if (!inA) continue;
+      ctx.fillStyle = colors[(i + j) % colors.length];
+      ctx.fillRect(ax + i * 48, ay + j * 52, 44, 48);
+    }
+  }
+  return texture(c);
+}
