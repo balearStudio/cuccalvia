@@ -400,6 +400,20 @@ function curtainWall(m) {
     const bar = box(x1 - x0, 0.11, 0.2, m.mullion, [(x0 + x1) / 2, y, 0.02], false);
     g.add(bar);
   }
+  // Arañas de acero inoxidable en los cruces de montantes y travesaños, como
+  // se ven desde dentro de la biblioteca
+  const spiderMat = new THREE.MeshStandardMaterial({ color: 0xc9cdcf, metalness: 0.9, roughness: 0.25 });
+  const spiders = [];
+  for (let x = x0 + 2; x < x1 - 0.5; x += 2) {
+    for (const y of [2.75, 4.35, 6.2]) {
+      for (const ang of [Math.PI / 4, -Math.PI / 4]) {
+        spiders.push(new THREE.BoxGeometry(0.42, 0.035, 0.035).rotateZ(ang).translate(x, y, -0.16));
+      }
+      spiders.push(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 8).rotateX(Math.PI / 2).translate(x, y, -0.09));
+    }
+  }
+  g.add(new THREE.Mesh(mergeGeometries(spiders), spiderMat));
+
   // Remate superior inclinado
   const topBar = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.16, 0.24), m.mullion);
   topBar.position.set((x0 + x1) / 2, (wallTop(x0, 0) + wallTop(x1, 0)) / 2, 0.02);

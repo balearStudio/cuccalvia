@@ -79,7 +79,7 @@ export const SECTIONS = [
       { k: 'Biblioteca', v: 'Cas Català–Illetes–Bendinat' },
       { k: 'Teléfono', v: '971 70 12 18' }
     ],
-    camera: { position: [9.4, 2.6, -1.6], target: [-6.5, 2.0, -15.0] },
+    camera: { position: [9.0, 1.7, -1.4], target: [-5.0, 3.6, -11.5] },
     via: [9.6, 2.4, 4],
     interior: true
   },

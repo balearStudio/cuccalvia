@@ -134,6 +134,18 @@ generaría un patrón de caleidoscopio, la foto se desenfoca y queda como campo 
 despiece se dibuja encima en canvas (`scene/textures.js`). Para cambiar de recorte basta con
 tocar las coordenadas de `PATCHES` en el script y volver a ejecutarlo.
 
+### La biblioteca, según las fotos de dentro
+
+- Estanterías con **costados de haya y baldas azules**, en batería, más los expositores de
+  novedades y DVD contra el muro este.
+- Las salas que dan al vacío tienen **mampara de vidrio** hasta el techo: desde la sala de
+  lectura se ve el mural de las ocas con «DESCOBREIX · ATREVEIX-TE · CREA».
+- **Lámparas industriales** de campana prismática colgadas de la cubierta a alturas
+  distintas; bajo el altillo, focos empotrados.
+- Columnas de **hormigón gris visto**, letras de bulto **#CUCALVIÀ** sobre el antepecho,
+  mostrador blanco con el logotipo, pared «SEGUEIX-NOS!» con los poliedros, la puerta de la
+  **Sala Infantil** y las banderolas verticales del muro este.
+
 ### Identidad gráfica
 
 El centro señaliza cada puerta con una tira vertical: banda de color con el nombre de la sala

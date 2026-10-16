@@ -643,13 +643,14 @@ export function createEnvironment() {
     const lamp = new THREE.Group();
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 4.2, 8), metal);
     post.position.y = 2.1;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.42), metal);
-    head.position.y = 4.24;
+    // Farola de sombrero cónico, como las del acceso
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.22, 20), metal);
+    head.position.y = 4.32;
     const bulb = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.05, 0.34),
+      new THREE.CylinderGeometry(0.16, 0.16, 0.18, 14),
       new THREE.MeshStandardMaterial({ color: 0xfff2cf, emissive: 0xfff0c8, emissiveIntensity: 0.15 })
     );
-    bulb.position.y = 4.16;
+    bulb.position.y = 4.12;
     lamp.add(post, head, bulb);
     lamp.position.set(x, GROUND_Y, z);
     lamp.traverse((o) => (o.castShadow = true));

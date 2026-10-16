@@ -306,3 +306,169 @@ export function noticeboard() {
   }
   return texture(c);
 }
+
+/** Rótulo de varias líneas en negro, como el de la puerta de la sala infantil. */
+export function wallLines(lines, { width = 1024, lineHeight = 120, size = 84 } = {}) {
+  const c = canvas(width, lineHeight * lines.length + 40);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = `700 ${size}px Barlow, Helvetica, Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  lines.forEach((line, i) => ctx.fillText(line, width / 2, 20 + lineHeight * (i + 0.5)));
+  return texture(c);
+}
+
+/** Pared «SEGUEIX-NOS!» con los iconos de redes y los poliedros pintados. */
+export function followUs() {
+  const W = 1024;
+  const H = 768;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  const rand = rng(31);
+  ctx.fillStyle = '#f7f7f4';
+  ctx.fillRect(0, 0, W, H);
+  // Poliedros sueltos por la pared
+  for (const [x, y, r, i] of [[90, 130, 80, 0], [210, 330, 60, 2], [130, 600, 90, 4], [880, 120, 55, 1], [930, 560, 70, 5]]) {
+    gem(ctx, x, y, r, GEM_COLORS[i], rand);
+  }
+  ctx.fillStyle = '#26324a';
+  ctx.textAlign = 'center';
+  ctx.font = '500 92px Barlow, Helvetica, Arial, sans-serif';
+  ctx.letterSpacing = '12px';
+  ctx.fillText('SEGUEIX-NOS!', W / 2, 300);
+  ctx.letterSpacing = '0px';
+  // Iconos de redes
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = '#26324a';
+    ctx.fillRect(W / 2 - 170 + i * 90, 350, 66, 66);
+  }
+  ctx.font = '500 44px Barlow, Helvetica, Arial, sans-serif';
+  ctx.fillText('@cucalvia', W / 2, 490);
+  ctx.fillText('www.cucalvia.com', W / 2, 545);
+  return texture(c);
+}
+
+/** Logotipo del centro: la «U» de triángulos de color del mostrador. */
+export function logoPanel() {
+  const S = 512;
+  const c = canvas(S, S);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f7f7f4';
+  ctx.fillRect(0, 0, S, S);
+  const cell = 90;
+  const ox = (S - cell * 3) / 2;
+  const oy = (S - cell * 3) / 2;
+  const cells = [
+    [0, 0, '#d3197e', '#5b2d9b'], [2, 0, '#17a79b', '#2b6cd4'],
+    [0, 1, '#e8c81e', '#d3197e'], [2, 1, '#2e8b45', '#e08a1e'],
+    [0, 2, '#2b6cd4', '#17a79b'], [1, 2, '#e08a1e', '#e8c81e'], [2, 2, '#5b2d9b', '#2e8b45']
+  ];
+  for (const [i, j, a, b] of cells) {
+    const x = ox + i * cell;
+    const y = oy + j * cell;
+    ctx.fillStyle = a;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + cell, y);
+    ctx.lineTo(x, y + cell);
+    ctx.fill();
+    ctx.fillStyle = b;
+    ctx.beginPath();
+    ctx.moveTo(x + cell, y);
+    ctx.lineTo(x + cell, y + cell);
+    ctx.lineTo(x, y + cell);
+    ctx.fill();
+  }
+  return texture(c);
+}
+
+/** Banderola vertical de la biblioteca, con su rotulación en gotas de color. */
+export function banner(words, { color = '#a7c43a', drip = '#c9de6b' } = {}) {
+  const W = 256;
+  const H = 1024;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  const rand = rng(words.join('').length);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  // Cabecera que gotea
+  ctx.fillStyle = drip;
+  ctx.fillRect(0, 0, W, 150);
+  for (let x = 10; x < W; x += 34) {
+    const len = 40 + rand() * 120;
+    ctx.fillRect(x, 140, 18, len);
+    ctx.beginPath();
+    ctx.arc(x + 9, 140 + len, 9, 0, 6.29);
+    ctx.fill();
+  }
+  // Palabras en vertical
+  ctx.fillStyle = color;
+  ctx.font = '700 66px Barlow, Helvetica, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  words.forEach((word, i) => {
+    ctx.save();
+    ctx.translate(70 + i * 62, 380 + i * 60);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText(word, 0, 0);
+    ctx.restore();
+  });
+  return texture(c);
+}
+
+/** Mural de la sala 1: sol amarillo, bandada de ocas y la consigna a mano. */
+export function mural() {
+  const W = 1536;
+  const H = 768;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f5f5f1';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#efc52f';
+  ctx.beginPath();
+  ctx.arc(330, 420, 230, 0, 6.29);
+  ctx.fill();
+  ctx.fillStyle = '#2b2f33';
+  const goose = (x, y, s) => {
+    ctx.beginPath();
+    ctx.moveTo(x - 60 * s, y - 30 * s);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + 70 * s, y - 40 * s);
+    ctx.lineTo(x + 8 * s, y + 14 * s);
+    ctx.lineTo(x - 70 * s, y - 6 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(x + 4 * s, y - 4 * s, 46 * s, 8 * s); // cuello
+  };
+  for (const [x, y, s] of [[200, 200, 1.1], [360, 290, 0.9], [520, 210, 1.2], [300, 480, 0.8], [650, 380, 0.7], [140, 380, 0.75]]) goose(x, y, s);
+  ctx.fillStyle = '#1d1f22';
+  ctx.font = '700 104px "Marker Felt", "Comic Sans MS", Barlow, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('DESCOBREIX', 860, 300);
+  ctx.fillText('ATREVEIX-TE', 860, 420);
+  ctx.fillText('CREA', 860, 540);
+  return texture(c);
+}
+
+/**
+ * Letras macizas a partir de un texto: se rasteriza en un canvas pequeño y cada
+ * píxel lleno se convierte en un bloque. Así salen las letras de bulto del
+ * «#CUCALVIÀ» sin cargar ninguna tipografía 3D.
+ */
+export function blockLetterCells(text, { px = 16 } = {}) {
+  const c = canvas(px * text.length, px + 6);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.font = `900 ${px}px Archivo, Helvetica, Arial, sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, 1, 3);
+  const width = Math.ceil(ctx.measureText(text).width) + 2;
+  const data = ctx.getImageData(0, 0, width, c.height).data;
+  const cells = [];
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 110) cells.push([x, c.height - 1 - y]);
+    }
+  }
+  return { cells, width, height: c.height };
+}
